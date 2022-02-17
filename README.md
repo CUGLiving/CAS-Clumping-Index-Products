@@ -21,7 +21,7 @@ Some instructions as following:
  3) The global product will be divided to 9 single images to export because the same set in GEE, so do not be astonished when you see 9 pieces of Image in your google derive;
  4) All products include 2 bands (CI band and Quality band) and are named by its date, more information about products can see the reference in the end of this page;
  5) I give a name of exported folder ("CIFolder"), you can modify as you like;
-The fast open link "https://code.earthengine.google.com/c0d8ce130c8129d5aa70650c9396bb3d"; The GEE app can be used to view products but only a smale size image can be exported because the GEE restriction;
+The fast open link "https://code.earthengine.google.com/02b1ac3eb93bf94dda3adb266a1894a3"; The GEE app "https://lrvings.users.earthengine.app/view/civiewer" can be used to view products;
 Although I am not the author of following publications, I still recommend you to cite them if you got help in your work form here; and please to share my work to your friends if they need;
 
 [1] Wei, S. and H. Fang (2016). "Estimation of canopy clumping index from MISR and MODIS sensors using the normalized difference hotspot and darkspot (NDHD) method: The influence of BRDF models and solar zenith angle." Remote Sensing of Environment 187: 476-491.
