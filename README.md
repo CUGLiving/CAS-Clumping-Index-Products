@@ -25,5 +25,7 @@ Some instructions as following:
 The fast open link "https://code.earthengine.google.com/02b1ac3eb93bf94dda3adb266a1894a3"; The GEE app "https://lrvings.users.earthengine.app/view/civiewer" can be used to view products;
 
 I strongly recommend you to cite the following references if you got help in your work form here; and please to share my work to your friends if they need;
+
 [1] Wei, S. and H. Fang (2016). "Estimation of canopy clumping index from MISR and MODIS sensors using the normalized difference hotspot and darkspot (NDHD) method: The influence of BRDF models and solar zenith angle." Remote Sensing of Environment 187: 476-491.
+
 [2] Wei, S., H. Fang, C. B. Schaaf, L. He and J. M. Chen (2019). "Global 500 m clumping index product derived from MODIS BRDF data (2001–2017)." Remote Sensing of Environment 232: 111296.
