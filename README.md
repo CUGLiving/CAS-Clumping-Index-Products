@@ -1,6 +1,6 @@
 # Clumping-Index-Products
 CI (clumping index) indicates the spatial distribution pattern of foliage. CI=1: random distribution; CI>1: regular distribution; CI<1: clumping distribution;
-All methods and technologies are referenced from the puiblications in the end of this page;
+All methods and technologies are referenced from the puiblications on the end of this page;
 
 Google Earth Engine JS code produce Clumping Index to download;
 The program are designed to provide all products so long as the input data is already; 
@@ -9,7 +9,7 @@ Expecting fCover and specific Global land cover are required to upload manually,
 The author assigned global land cover was download from http://bioval.jrc.ec.europa.eu/products/glc2000/glc2000.php; I have uploaded it.
 Under the retriction, The fCover input has not been available completely.
 
-I intend to upload monthly fCover within 2002-2020, so the final products will be downloaded during this interval, but anyone can downloaded fCover in other date from "https://land.copernicus.vgt.vito.be/PDF/portal/Application.html#Home" then uploaded to your own GEE assets; this means you need do a minor mondifidation in this program to get your desired products;
+I intend to upload monthly fCover within 2002-2020, so the final products will be downloaded during this interval, but anyone can downloaded fCover at other date from "https://land.copernicus.vgt.vito.be/PDF/portal/Application.html#Home" then uploaded to your own GEE assets; this means you need do a minor mondifidation in this program to get your desired products;
 
 so up to 2022-02-17, the daily, monthly, yearly CI products in 2019 are available for download;
 
@@ -18,7 +18,7 @@ After the corresponding data are already; all daily, monthly, yearly products ca
 Notes: this code is designed to provide an interactive download tool; after you run this code in GEE, an UI page is appeared and you need type two dates (the start date and end date of products you want), then you can click to produce what products do you need and select to export a global or regional image to your Google derive;
 Some instructions as following:
  1) please type date with a form likes "2020-01-01";
- 2) please slow down you click speed in UI page because calculating CI is not a easy work;
+ 2) The image value has been scaled 1000, please slow down you click speed in UI page because calculating CI is not a easy work;
  3) The global product will be divided to 9 single images to export because the same set in GEE, so do not be astonished when you see 9 pieces of Image in your google derive;
  4) All products include 2 bands (CI band and Quality band) and are named by its date, more information about products can see the reference in the end of this page;
  5) I give a name of exported folder ("CIFolder"), you can modify as you like;
