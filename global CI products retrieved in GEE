@@ -1,0 +1,829 @@
+var fcover = ee.ImageCollection("users/lrvings/FCOVER");
+//# landcover and empirical parameters
+var LandCover_2020 = ee.Image('projects/ee-lrvings/assets/GLC2000');
+var oriClass = ee.List([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]);
+var detClass = ee.List([2,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0]);
+var GLC2000 = LandCover_2020.reproject('EPSG:4326',null,500).remap(oriClass,detClass,0);
+var fcoverList = fcover.toList(fcover.size())
+
+// var fcover1=ee.Image('projects/ee-lrvings/assets/fcover')
+// var fcover500=fcover1.reproject('EPSG:4326',null,500).divide(255);
+var isoValues = ee.List.sequence(0,1000,4);
+var volValues = ee.List.sequence(0,1000,4);
+var geoValues = ee.List.sequence(0,400,2);
+var pe = ee.Image(2.718281828459);
+
+
+//*****UI*****
+var visParam = {
+ min: 0,
+ max: 1,
+ palette: 'FFFFFF, CE7E45, 99B718, 74A901, 66A000, 529400,' +
+   '3E8601, 207401, 056201, 011D01, 011301'
+};
+var startLabel = ui.Label({value:'start:',style:{fontFamily:'serif',color:'green'}})
+var endLabel = ui.Label({value:'end:',style:{fontFamily:'serif',color:'green'}})
+var startTextbox = ui.Textbox({
+  placeholder:'2020-01-01',
+  style:{position:'top-left'}
+});
+var endTextbox = ui.Textbox({
+  placeholder:'2021-01-01',
+  style:{position:'top-left'}
+});
+var panel = ui.Panel();
+panel.style().set({
+  width: '260px',
+  height:'500px',
+  position: 'top-right'
+});
+var panel2 = ui.Panel({layout: ui.Panel.Layout.flow('horizontal')});
+panel2.style().set({
+  width: '240px',
+  height:'50px',
+  position: 'top-center',
+  padding:'0px'
+});
+
+var panel3 = ui.Panel();
+panel3.style().set({
+  width: '240px',
+  height:'50px',
+  position: 'top-center',
+  padding:'0px'
+});
+
+var panel4 = ui.Panel();
+panel4.style().set({
+  width: '240px',
+  height:'150px',
+  position: 'top-center',
+  padding:'0px'
+});
+var download = ui.Button({label:'download',style:{stretch:'horizontal'}});
+var globalExport = ui.Checkbox('export global image',false);
+var isSelfDefine = ui.Checkbox('draw a rectangle to export',false);
+
+
+// day name
+// function constructDic(imageList){
+  
+//   function getImageName(image){
+//     return ee.Image(image).get('system:index');}
+    
+//   var names = imageList.map(getImageName)
+
+//   var dictionaryObj = ee.Dictionary.fromLists(names,imageList)
+//   return dictionaryObj
+// }
+function constructDaySelect(startDate,endDate){
+  var dayList = []
+  var date1 = new Date(startDate)
+  var date2 = new Date(endDate)
+  var day = 1000 * 3600 * 24;
+  for(var i = date1.getTime();i<date2.getTime();i=i+day){
+     dayList.push(i);
+  }
+  return dayList.map(formatDate)
+}
+function formatDate(date) {
+
+  var d = new Date(date),
+      month = '' + (d.getMonth() + 1),
+      day = '' + d.getDate(),
+      year = d.getFullYear();
+
+  if (month.length < 2) 
+      month = '0' + month;
+  if (day.length < 2) 
+      day = '0' + day;
+
+  return [year, month, day].join('-');
+}
+//day name
+
+//monthName
+function  getMonths(date1 , date2){
+  
+  date1 = date1.split( "-" );
+  date2 = date2.split( "-" );
+  var  year1 = parseInt(date1[0]) , 
+     month1 = parseInt(date1[1]) , 
+     year2 = parseInt(date2[0]) , 
+     month2 = parseInt(date2[1]) , 
+     day1 = parseInt(date1[2]),
+     day2 = parseInt(date2[2]);
+  var months = (year2 - year1) * 12 + (month2-month1);
+  
+  if(day2<day1){
+    months = months-1;
+  }
+  return  months;    
+}
+
+function getNextMonth(date) {
+  
+  var arr = date.split('-');  
+  var year = arr[0]; 
+  var month = arr[1]; 
+  var day = arr[2]; 
+  var days = new Date(year, month, 0);  
+  days = days.getDate(); //get number of day
+  var year2 = year;  
+  var month2 = parseInt(month) + 1;  
+  if (month2 == 13) {  
+      year2 = parseInt(year2) + 1;  
+      month2 = 1;  
+  }  
+  // var day2 = day;  
+  // var days2 = new Date(year2, month2, 0);  
+  // days2 = days2.getDate();  
+  // if (day2 > days2) {  
+  //     day2 = days2;  
+  // }  
+  if (month2 < 10) {  
+      month2 = '0' + month2;  
+  }  
+
+  var t2 = year2 + '-' + month2 + '-' + day;  
+  return t2;  
+} 
+
+function constructMonthSelect(startDate,endDate){
+  var monthCount =  getMonths(startDate,endDate)
+  if(monthCount===0){
+    return 0
+  }
+  var arr = startDate.split('-');  
+  var year = arr[0]; 
+  var month = arr[1]; 
+  var day = arr[2];
+  var startMonth = year + '-' + month + '-' + day;
+  var monthList=[startMonth]
+  var cumonth = startDate
+  for(var i=1;i<monthCount;i++){
+    cumonth = getNextMonth(cumonth)
+    monthList.push(cumonth)
+  }
+  return monthList
+}
+//monthName
+
+//yearName
+function constructYearSelect(startDate,endDate){
+  
+  var date1 = startDate.split( "-" );
+  var date2 = endDate.split( "-" );
+  var year1 = parseInt(date1[0])
+  var year2 = parseInt(date2[0])
+  
+  var yearInter = year2-year1;
+  var begin = year+''
+  var yearList=[begin]
+  while(year1<year2-1){
+    year1=year1+1;
+    var a = year1+''
+    yearList.push(a);
+  }
+  return yearList
+}
+//yearName
+
+
+
+
+var dailyProduct = function(){
+  panel.remove(panel3)
+  panel.remove(panel4)
+  panel3.clear()
+  var start = startTextbox.getValue(), end = endTextbox.getValue()
+  
+  //js date
+  var dateStart = new Date(start);
+  var dateEnd = new Date(end);
+  if((dateEnd-dateStart)<0){
+    print('the start date should less than the end date ')
+    return 0;
+  }
+  var retrieveImgs = filtrateModiesImage(start,end);
+  
+  var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity);
+  var imageList = dailyCIColls.toList(dailyCIColls.size());
+  // var dictionarys = constructDic(imageList);
+  // var nameList = ee.List(dictionarys.keys()).getInfo();
+  var dayList = constructDaySelect(start,end);
+  
+  var index=-1
+  
+  var select = ui.Select({
+    items:dayList,
+    style:{stretch:'horizontal'},
+    onChange:function(key){
+    index = dayList.indexOf(key);
+    var image = ee.Image(imageList.get(ee.Number(index)));
+    print(index)
+    setRegion(image,key)
+    }
+  })
+  panel3.add(select);
+  panel.add(panel3)
+
+  //var endDate = dailyCIColls.aggregate_max('system:index')
+  
+  // print(dictionarys)
+  // Map.addLayer(dailyCIColls.first(),{min: 0.0,max: 1000,gamma: 1.0},'magiCI');
+};
+var monthlyProduct = function(){
+  panel.remove(panel3)
+  panel.remove(panel4)
+  panel3.clear();
+  
+  var start = startTextbox.getValue(), end = endTextbox.getValue();
+  //js date
+  
+  var monthCount = getMonths(start,end)
+  print(monthCount)
+  if(monthCount<1){
+    print('the interval must large than 1 month')
+    return 0;
+  }
+  var retrieveImgs = filtrateModiesImage(start,end);
+  var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity);
+  
+  var monthList = constructMonthSelect(start,end)
+  print(monthList);
+  var monthlyImgList  = MonthlyComposite(start,end,dailyCIColls)
+  print(monthlyImgList);
+  var select = ui.Select({
+    items:monthList,
+    style:{stretch:'horizontal'},
+    onChange:function(key){
+      var index = monthList.indexOf(key);
+      var MonthImage = ee.Image(monthlyImgList.get(index));
+      setRegion(MonthImage,key)
+    }
+  })
+  panel3.add(select);
+  panel.add(panel3);
+
+};
+var yearlyProduct = function(){
+  // var outputImg = ee.List([]);
+  panel.remove(panel3)
+  panel.remove(panel4)
+  panel3.clear();
+  
+  //
+  var start = startTextbox.getValue(), end = endTextbox.getValue()
+  
+  var date1 = start.split( "-" );
+  var date2 = end.split( "-" );
+  var year1 = parseInt(date1[0])
+  var year2 = parseInt(date2[0])
+  var yearCount = year2-year1
+  if(yearCount<1){
+    print('the interval must large than 1 year')
+    return 0;
+  }
+  var retrieveImgs = filtrateModiesImage(start,end);
+  var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity);
+  
+  var yearList = constructYearSelect(start,end);
+  print(yearList)
+  var yearlyImgList = yearlyComposite(start,end,dailyCIColls);
+  
+  
+  var select = ui.Select({
+    items:yearList,
+    style:{stretch:'horizontal'},
+    onChange:function(key){
+      var index = yearList.indexOf(key);
+      var yearImage = ee.Image(yearlyImgList.get(ee.Number(index)));
+      setRegion(yearImage,key);
+    }
+  })
+  panel3.add(select);
+  panel.add(panel3);
+};
+
+var dayButton = ui.Button({label:'daily',style:{stretch:'horizontal'},
+  onClick:dailyProduct
+})
+var monthButton = ui.Button({label:'monthly',style:{stretch:'horizontal'},
+  onClick:monthlyProduct
+})
+var yearButton = ui.Button({label:'yearly',style:{stretch:'horizontal'},
+  onClick:yearlyProduct
+})
+
+panel2.add(dayButton)
+panel2.add(monthButton)
+panel2.add(yearButton)
+
+var showImage = function(range){
+  
+  var startDate = ee.Date(range.start().format(null, 'UTC'));
+  
+  var endDate = startDate.advance(8,'day');
+
+  var retrieveImgs = filtrateModiesImage(startDate,endDate);
+  
+  var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity);
+  
+  var imageList = dailyCIColls.toList(dailyCIColls.size());
+  
+  var image = ee.Image(imageList.get(0));
+ 
+  var layerName = startDate.format(null, 'UTC').slice(0,10);
+  
+  Map.addLayer(image.select(0),visParam,layerName.getInfo());
+ 
+}
+
+var dateSlider = ui.DateSlider({
+    start:ee.Date('2010-01-01'),
+    end: ee.Date('2022-01-01'),
+    value:null,
+    period: 1,
+    style:{position:'top-center',stretch:'horizontal',height:'120px',width:'200px'},
+    onChange: showImage
+  });
+
+
+
+// panel3.add(select);
+
+
+
+Map.add(dateSlider.setValue(ee.Date('2020-01-01')));
+Map.add(panel);
+panel.add(startLabel);
+panel.add(startTextbox);
+panel.add(endLabel);
+panel.add(endTextbox);
+panel.add(panel2);
+Map.drawingTools().setShown(false);
+Map.drawingTools().clear();
+
+//*****UI*****
+
+
+function setRegion(image,ImgName){
+  //export image,including global and regional image
+  panel.remove(panel4)
+  panel4.clear()
+  
+  Map.drawingTools().setShown(false);
+ 
+  // var countflag = ee.Number(Map.drawingTools().layers().length()).gt(0);
+  // print(Map.drawingTools().layers().length())
+  // "if" statement is invalid; modified at 2022-02-16
+  // print(Map.drawingTools().layers().length());
+  // set to draw multiple retangles
+  // if(Map.drawingTools().layers().length()>0){
+  //   download.setDisabled(false)
+  //   var firstRegion = Map.drawingTools().layers().get(0).toGeometry();
+  //   print('the first');
+  //   var clipImage = image.clip(firstRegion);
+  //   export_regionalImg(clipImage,ImgName,firstRegion);
+   
+  // }else{
+  //   download.setDisabled(true)
+  // }
+  // ee.Algorithms.If(countflag,exportFirstRegion(), download.setDisabled(true));
+  
+  isSelfDefine.onChange(function(checked){
+  if(checked){
+    globalExport.setValue(false)
+    download.setDisabled(false)
+    Map.drawingTools().setShown(true);
+    Map.drawingTools().clear();
+    Map.drawingTools().setLinked(false);
+    Map.drawingTools().setDrawModes(['rectangle']);
+    Map.drawingTools().addLayer([]);
+    Map.drawingTools().setShape('rectangle');
+    
+    var drawGeometry = ui.util.debounce(function(){
+      var length = Map.drawingTools().layers().length()
+      var defineRegion = Map.drawingTools().layers().get(length-1).toGeometry();
+      Map.drawingTools().layers().get(length-1).setLocked(true);
+      // print(defineRegion);
+      var clipImage = image.clip(defineRegion);
+      export_regionalImg(clipImage,ImgName,defineRegion);
+      
+    },100);
+    Map.drawingTools().onSelect(function(){
+      var selectRegion = Map.drawingTools().getSelected().toGeometry();
+      print(selectRegion);
+      print('cliping by selectedRegion....');
+      var clipImage = image.clip(selectRegion);
+      export_regionalImg(clipImage,ImgName,selectRegion);
+    })
+    Map.drawingTools().onEdit(drawGeometry);
+    Map.drawingTools().onDraw(drawGeometry);
+    Map.drawingTools().onErase(drawGeometry);
+    Map.drawingTools().setShown(true);
+    
+  }else{
+    Map.drawingTools().clear();
+    Map.drawingTools().setShown(false);
+  }
+  })
+  
+  
+  globalExport.onChange(function(checked){
+  if(checked){
+    isSelfDefine.setValue(false)
+    download.setDisabled(false)
+    download.onClick(function(){
+      
+      var outputImg = ee.Image([image.select(0).multiply(1000).toInt16(),image.select(1).toInt16()]);
+      export_globalImg(outputImg,ImgName)
+      Map.addLayer(image.select(0),visParam,'global');
+      print(outputImg);
+      
+    })
+    panel4.remove(download);
+    panel4.add(download);
+  }
+  })
+  
+  panel4.add(globalExport);
+  panel4.add(isSelfDefine);
+  panel4.add(download)
+  // download.setDisabled(true)
+  panel.add(panel4);
+  
+  
+}
+
+function filtrateModiesImage(start,end){
+  //js date
+  var dateStart = new Date(start);
+  var dateEnd = new Date(end);
+
+  
+  var startDate = ee.Date(start);
+  var endDate = ee.Date(end);
+  
+  //ROSS-lI MODEL kernel parameters: iso, vol, geo; daily, 500m
+  var MCD43A1Band1s = ee.ImageCollection("MODIS/006/MCD43A1").filterDate(startDate,endDate).select(['BRDF_Albedo_Parameters_Band1_iso', 
+  'BRDF_Albedo_Parameters_Band1_vol',
+  'BRDF_Albedo_Parameters_Band1_geo',
+  'BRDF_Albedo_Band_Mandatory_Quality_Band1']);//.map(hQuity);
+  
+  //band quality for identification of retrieval quality
+  var MCD43A2Band1Quality = ee.ImageCollection("MODIS/006/MCD43A2").filterDate(startDate,endDate).select(['Snow_BRDF_Albedo','BRDF_Albedo_Band_Quality_Band1']);
+  // for calculate NDVI
+  var MCD43A4=ee.ImageCollection("MODIS/006/MCD43A4").filterDate(startDate,endDate);
+  
+  var days = (dateEnd-dateStart)/(1000 * 60 * 60 * 24);
+  if(days<8){
+    endDate = endDate.advance(8,'day');
+  }
+ 
+  //for acquiration of SZA and View Zenith of Terra during the overpass, 8-day
+  var observationSize = ee.ImageCollection("MODIS/006/MOD09A1").filterDate(startDate,endDate).select(['SolarZenith']).size();
+  
+  
+  var obserseBandsTerra=ee.ImageCollection("MODIS/006/MOD09A1").filterDate(startDate,endDate).select(['SolarZenith']).toList(observationSize);
+  var obserseBandsAqur=ee.ImageCollection("MODIS/006/MYD09A1").filterDate(startDate,endDate).select(['SolarZenith']).toList(observationSize);
+  
+  //add 'ViewZenith','RelativeAzimuth' if required
+  var averageSolarZenith = obserseBandsTerra.map(function(TerraObser){
+    var index = obserseBandsTerra.indexOf(TerraObser);
+    var AqurObser = obserseBandsAqur.get(index);
+    return ee.Image(TerraObser).add(AqurObser).divide(2);
+  });
+  var aveObserImage = ee.ImageCollection.fromImages(averageSolarZenith)
+  
+  
+  var retriImgCollection = alignImage(startDate,MCD43A1Band1s,MCD43A2Band1Quality,aveObserImage,MCD43A4);
+  return retriImgCollection;
+}
+// make sure each piece of MCD43A1 image has its corresponding observation information 
+function alignImage(startDate,MCD43A1Band1s,MCD43A2Band1Quality,aveObserImage,MCD43A4){
+
+
+  
+  var MCDBrdfList = MCD43A1Band1s.toList(MCD43A1Band1s.size()); //#daily
+  
+  //pick up date added at 2022-02-15
+  var findate = function(image,dateList){
+    return ee.List(dateList).add(ee.Date(image.get('system:time_start')).format('YYYY-MM'))
+  }
+  //pick up date added at 2022-02-15
+  var DateList = ee.List(MCD43A1Band1s.iterate(findate,ee.List([])))
+  
+  var averAngleList = aveObserImage.toList(aveObserImage.size()); //#8-days
+  var qualityLength = MCD43A2Band1Quality.size()
+  var MCDbandQualityList = MCD43A2Band1Quality.toList(qualityLength); //#daily
+  
+  function ndvi(image){
+      return image.normalizedDifference(['Nadir_Reflectance_Band2','Nadir_Reflectance_Band1']).rename(['ndvi'])
+  }
+
+  var MCD43A4DailyNDVIs=MCD43A4.select(['Nadir_Reflectance_Band1','Nadir_Reflectance_Band2']).map(ndvi)
+  var NDVIList = MCD43A4DailyNDVIs.toList(MCD43A4DailyNDVIs.size()) //#daily
+
+  //# copy zenith 8 times for the same length of angle observations to that of brdf
+  //cimbine each data band to one image
+  var imageList = MCDBrdfList.map(function(brdfImage){
+    
+    
+    var brIndex = MCDBrdfList.indexOf(brdfImage);
+    var monthDate = ee.Date(DateList.get(brIndex));
+    
+    var fcoverImgs = fcover.filterDate(monthDate,monthDate.advance(1,'day'));
+    // fcover added at 2022-02-15
+    var fFlag = fcoverImgs.size().gt(0);
+    var fcoverImg = ee.Algorithms.If(fFlag,fcoverImgs.first().rename(['fcoverMask']),ee.Algorithms.If(
+      monthDate.difference(ee.Date('2020'),'day').gt(0),
+      fcover.first().rename(['fcoverMask']),
+      ee.Image(fcoverList.get(-1)).rename(['fcoverMask'])
+      
+      ));
+    // fcover added at 2022-02-15
+    
+    //modified at 02-16
+    var isLarge = brIndex.lt(qualityLength);
+    var MCDBandQuality = ee.Algorithms.If(isLarge,MCDbandQualityList.get(brIndex),MCDbandQualityList.get(qualityLength.subtract(ee.Number(1))));
+    //modified at 02-16
+    // if(brIndex.lt(qualityLength)){
+    //   var MCDBandQuality = MCDbandQualityList.get(brIndex);
+    // }else{
+    //   MCDBandQuality = MCDbandQualityList.get(qualityLength.subtract(ee.Number(1)));
+    // }
+      
+    var obserIndex = ee.Number(brIndex).divide(8).int();
+    var quality = ee.Image(MCDBandQuality).select('BRDF_Albedo_Band_Quality_Band1');
+    var snowBand = ee.Image(MCDBandQuality).select('Snow_BRDF_Albedo');
+    // the date property still exists
+    return ee.Image(brdfImage).addBands([ee.Image(NDVIList.get(brIndex)),ee.Image(averAngleList.get(obserIndex)),quality,snowBand,fcoverImg]);
+      
+  })
+  
+  return ee.ImageCollection.fromImages(imageList);
+}
+
+
+
+/*
+var vol_hotspot=ee.List([ee.Image(0.012116023866677095), ee.Image(0.05040506666435651), ee.Image(0.12150142069147551), ee.Image(0.23986610937614983), ee.Image(0.4364640186021671), ee.Image(0.7853971446591612)]) //for hotspot,0-60
+var vol_darkspot=ee.List([ee.Image(-0.028869141472100956), ee.Image(-0.08767661669792137), ee.Image(-0.13424818873345878), ee.Image(-0.12282893538521444), ee.Image(0.004220816002315275), ee.Image(0.34242555715702716)])//for darkspot,0-60
+var geo_hotspot=ee.List([ee.Image(0.015664580721536092), ee.Image(0.0682965044068431), ee.Image(0.17863263152334707), ee.Image(0.39868046126011114), ee.Image(0.8645515770819778), ee.Image(1.9999961087080653)]) //for hotspot
+var geo_darkspot=ee.List([ee.Image(-0.4552423679035602), ee.Image(-0.9125519094433565), ee.Image(-1.309400826875714), ee.Image(-1.6108140317987454), ee.Image(-2.1114464966761575), ee.Image(-2.9999974058033088)]) //for darkspot
+
+var ACoeCylinder=ee.List([ee.Image(-0.61),ee.Image(-0.58),ee.Image(-0.51),ee.Image(-0.48),ee.Image(-0.46),ee.Image(-0.48)]);
+var BCoeCylinder=ee.List([ee.Image(0.76),ee.Image(0.78),ee.Image(0.78),ee.Image(0.79),ee.Image(0.81),ee.Image(0.85)])
+var ACoeEllipsoid=ee.List([ee.Image(-1.02),ee.Image(-1.08),ee.Image(-1.15),ee.Image(-1.20),ee.Image(-1.27),ee.Image(-1.4)])
+var BCoeEllipsoid=ee.List([ee.Image(1.02),ee.Image(1.08),ee.Image(1.18),ee.Image(1.28),ee.Image(1.4),ee.Image(1.57)]);
+var solarAngleList = ee.List([ee.Image(10),ee.Image(20),ee.Image(30),ee.Image(40),ee.Image(50),ee.Image(60)]);
+*/
+
+//# landcover and empirical parameters
+
+var defaultVisualizationVis = {min: 0.0,max: 2000,gamma: 2.0} //# the different style to Javascript
+var angleVisualizationVis = {min: 0.0,max: 18000,gamma: 2.0} // the different style to Javascript
+var ndvivisParams={min: 0.0,max: 1, palette:['black','red','green']};
+
+
+
+
+
+
+
+function RetrieveCI(retrivalImage){
+    //mcd43A1Quality = retrivalImage.select('BRDF_Albedo_Band_Mandatory_Quality_Band1')
+    //band 1
+    //band 2
+    //band 3
+    //band 4
+    //band 5
+    //band 6
+    var mcd43A2Quality = retrivalImage.select('BRDF_Albedo_Band_Quality_Band1');
+    var snowBand =  retrivalImage.select('Snow_BRDF_Albedo');
+    var ndvi = retrivalImage.select('ndvi');
+
+    var isoImage = retrivalImage.select('BRDF_Albedo_Parameters_Band1_iso').divide(4).toInt16().multiply(4);
+    var volImage = retrivalImage.select('BRDF_Albedo_Parameters_Band1_vol').divide(4).toInt16().multiply(4);
+    var geoImage = retrivalImage.select('BRDF_Albedo_Parameters_Band1_geo').divide(4).toInt16().multiply(4);
+
+    //# to avoid underestimate in the low fcover area
+    var zenith = retrivalImage.select('SolarZenith').multiply(0.001).round().multiply(10);
+    
+    
+    // added fcover at 2022-02-15
+    var fcoverMask = retrivalImage.select('fcoverMask');
+    var newZenith1 = zenith.where(fcoverMask.eq(1),60); //1 means the focver<0.25
+    // var newZenith1 = zenith.where(fcover500.lte(0.25).bitwiseAnd(fcover500.gt(0)),60);
+    // added fcover at 2022-02-15
+    
+    var newZenith = newZenith1.where(zenith.gt(60),60);
+    //# set solar zenoth to 60 when it's larger than 60 
+    
+
+    // to set hotspot and darkspot kernel value in according to solar zenith; reserve five decimal places
+    var vol_hotspotImg = newZenith.where(newZenith.eq(10),0.01211).where(newZenith.eq(20),0.05040).where(newZenith.eq(30),0.12150).where(newZenith.eq(40),0.23986).where(newZenith.eq(50),0.43646).where(newZenith.eq(60),0.78539);
+    var vol_darkspotImg = newZenith.where(newZenith.eq(10),-0.02886).where(newZenith.eq(20),-0.08767).where(newZenith.eq(30),-0.13424).where(newZenith.eq(40),-0.122826).where(newZenith.eq(50),0.00422).where(newZenith.eq(60),0.34242);
+    var geo_hotspotImg = newZenith.where(newZenith.eq(10),0.01566).where(newZenith.eq(20),0.06829).where(newZenith.eq(30),0.17863).where(newZenith.eq(40),0.39868).where(newZenith.eq(50),0.86455).where(newZenith.eq(60),1.99999);
+    var geo_darkspotImg = newZenith.where(newZenith.eq(10),-0.45524).where(newZenith.eq(20),-0.91255).where(newZenith.eq(30),-1.30940).where(newZenith.eq(40),-1.61081).where(newZenith.eq(50),-2.11144).where(newZenith.eq(60),-2.99999);
+    // to set hotspot and darkspot kernel value in according to solar zenith; reserve five decimal places
+
+    // generate mask based on zenith and shape of canopy (cylinder or ellipsoid)
+    var Cymask10 = GLC2000.eq(1).bitwiseAnd(newZenith.eq(10));
+    var Cymask20 = GLC2000.eq(1).bitwiseAnd(newZenith.eq(20));
+    var Cymask30 = GLC2000.eq(1).bitwiseAnd(newZenith.eq(30));
+    var Cymask40 = GLC2000.eq(1).bitwiseAnd(newZenith.eq(40));
+    var Cymask50 = GLC2000.eq(1).bitwiseAnd(newZenith.eq(50));
+    var Cymask60 = GLC2000.eq(1).bitwiseAnd(newZenith.eq(60));
+    
+    var Elmask10 = GLC2000.eq(2).bitwiseAnd(newZenith.eq(10));
+    var Elmask20 = GLC2000.eq(2).bitwiseAnd(newZenith.eq(20));
+    var Elmask30 = GLC2000.eq(2).bitwiseAnd(newZenith.eq(30));
+    var Elmask40 = GLC2000.eq(2).bitwiseAnd(newZenith.eq(40));
+    var Elmask50 = GLC2000.eq(2).bitwiseAnd(newZenith.eq(50));
+    var Elmask60 = GLC2000.eq(2).bitwiseAnd(newZenith.eq(60));
+    // generate mask based on zenith and shape of canopy (cylinder or ellipsoid)
+    
+    // set coefficients
+    var AfCoeImg = newZenith.where(Cymask10,-0.61).where(Elmask10,-1.02)
+    .where(Cymask20,-0.58).where(Elmask20,-1.08)
+    .where(Cymask30,-0.51).where(Elmask30,-1.15)
+    .where(Cymask40,-0.48).where(Elmask40,-1.20)
+    .where(Cymask50,-0.46).where(Elmask50,-1.27)
+    .where(Cymask60,-0.48).where(Elmask60,-1.4).where(GLC2000.eq(0),0);
+    
+    var BfCoeImg = newZenith.where(Cymask10,0.76).where(Elmask10,1.02)
+    .where(Cymask20,0.78).where(Elmask20,1.08)
+    .where(Cymask30,0.78).where(Elmask30,1.18)
+    .where(Cymask40,0.79).where(Elmask40,1.28)
+    .where(Cymask50,0.81).where(Elmask50,1.4)
+    .where(Cymask60,0.85).where(Elmask60,1.57).where(GLC2000.eq(0),0);
+    // set coefficients
+   
+    //
+    var ridusZenith = newZenith.divide(57.3);
+    var hotspotImg = isoImage.add(volImage.multiply(vol_hotspotImg)).add(geoImage.multiply(geo_hotspotImg));
+    var darkspotImg = isoImage.add(volImage.multiply(vol_darkspotImg)).add(geoImage.multiply(geo_darkspotImg));
+    var corrHotspot = hotspotImg.add(pe.pow(ridusZenith.multiply(1.4142).subtract(ndvi)).multiply(0.031).add(0.002));
+
+    var NDHD = corrHotspot.subtract(darkspotImg).divide(corrHotspot.add(darkspotImg));
+   
+    var ClumpingIndex = AfCoeImg.multiply(NDHD).add(BfCoeImg).rename('CI');
+    ClumpingIndex = ClumpingIndex.updateMask(GLC2000.gt(0)).updateMask(ClumpingIndex.gt(0));
+    
+    // Map.addLayer(ClumpingIndex,visParam,'CI');
+    //#zenithMaks = zenith.gt(90)
+    //#scaleZenith = zenith.updateMask(zenithMaks).subtract(90).unmask(zenith)
+    var timestamp = ee.Date(retrivalImage.get('system:time_start'))
+    return ee.Image([ClumpingIndex,mcd43A2Quality,snowBand]).set("system:time_start", timestamp);
+}
+
+function h_dayQuity(image){
+    var qaband = image.select('BRDF_Albedo_Band_Quality_Band1');
+    var CI = image.select('CI');
+    var snowBand = image.select('Snow_BRDF_Albedo');
+    var snowMask = snowBand.eq(0);
+    var qabandMask = qaband.lt(4);
+    var CIs = CI.updateMask(snowMask).updateMask(qabandMask);
+    var qa = qaband.where(qaband.lte(1),0).where(qaband.lt(4).and(qaband.gt(1)),2);
+    return ee.Image(CIs).addBands(qa);
+}
+
+function maskHighest(img){
+    var qa = img.select('BRDF_Albedo_Band_Quality_Band1');
+    var CI = img.select('CI');
+    var mask = qa.lt(1);
+    return ee.Image(CI).updateMask(mask);
+}
+
+function maskMagitude(himg){
+    var qa = himg.select('BRDF_Albedo_Band_Quality_Band1');
+    var CI = himg.select('CI');
+    var hmask = qa.gt(1).bitwiseAnd(qa.lt(4));
+    return ee.Image(CI).updateMask(hmask);
+}
+//composite images within 8 observation by max values
+
+
+
+
+function MonthlyComposite(start,end,imgCollection){
+    var startDate = ee.Date(start);
+    var endDate = ee.Date(end);
+
+    var months = endDate.difference(startDate,'month').int();
+    
+    var irSequence = ee.List.sequence(0,months.subtract(1),1);
+    print(irSequence)
+    
+    function compositCI(num,MonthList){
+  
+      var filterStart = startDate.advance(num,'month');
+      var filterend = startDate.advance(ee.Number(num).add(1),'month');
+      var Collection = imgCollection.filterDate(filterStart,filterend);
+     
+      var highCI = ee.ImageCollection(Collection.map(maskHighest)).reduce(ee.Reducer.mean());
+      var magituteCI = ee.ImageCollection(Collection.map(maskMagitude)).reduce(ee.Reducer.mean());
+      var finalCI = highCI.unmask(magituteCI);
+      
+      // Map.addLayer(finalCI,visParam,'finCI');
+      var commonMask =  highCI.mask().eq(0).bitwiseAnd(magituteCI.mask().eq(1));
+      var qaband = highCI.mask().where(commonMask,2);
+      var fqaband = qaband.updateMask(qaband.gt(0)).where(qaband.eq(1),0);
+      
+      var timestamp = ee.Date(filterStart.format("YYYY-MM-dd"));
+      
+      var finalImg = ee.Image([finalCI,fqaband]).rename(['CI','QA']).set("system:time_start", timestamp);
+      
+      return ee.List(MonthList).add(finalImg);
+  }
+    var monthlyImgs = ee.List(irSequence.iterate(compositCI,ee.List([])));
+    // return ee.ImageCollection.fromImages(monthlyImgs);
+    return monthlyImgs
+}
+
+
+function yearlyComposite(start,end,imgCollection){
+    var startDate = ee.Date(start);
+    var endDate = ee.Date(end);
+    var years = endDate.difference(startDate,'year').int();
+    var irSequence = ee.List.sequence(0,ee.Number(years).subtract(1),1);
+      
+    function compositCI(num,yearList){
+      var filterStart = startDate.advance(num,'year');
+      var filterend = startDate.advance(ee.Number(num).add(1),'year');
+      var Collection = imgCollection.filterDate(filterStart,filterend);
+     
+      var highCI = ee.ImageCollection(Collection.map(maskHighest)).reduce(ee.Reducer.mean());
+      var magituteCI = ee.ImageCollection(Collection.map(maskMagitude)).reduce(ee.Reducer.mean());
+      var finalCI = highCI.unmask(magituteCI);
+      
+      // Map.addLayer(finalCI,visParam,'finCI');
+      var commonMask =  highCI.mask().eq(0).bitwiseAnd(magituteCI.mask().eq(1))
+      var qaband = highCI.mask().where(commonMask,2);
+      var fqaband = qaband.updateMask(qaband.gt(0)).where(qaband.eq(1),0);
+      
+      var timestamp = ee.Date(filterStart.format("YYYY"));
+      var finalImg = ee.Image([finalCI,fqaband]).rename(['CI','QA']).set("system:time_start", timestamp);
+      return ee.List(yearList).add(finalImg);
+  }
+  var yearlyImgs = ee.List(irSequence.iterate(compositCI,ee.List([])));
+  return yearlyImgs;
+}
+
+
+
+// export Image
+var globalNet = ee.FeatureCollection('projects/ee-lrvings/assets/GLOBAL60prj');
+var featureList = globalNet.toList(9);
+
+function export_globalImg(CIImage,ImgName){
+  
+  for (var i=0; i<9; i++){
+    var bound = ee.Feature(featureList.get(i)).geometry();
+    var name = cat(ImgName,i)
+    Export.image.toDrive({
+      image:CIImage,
+      description:ImgName,
+      region:bound,
+      scale:500,
+      folder:'CIFolder',
+      maxPixels:1E13});
+  }
+  function cat(ImgName,astr){
+    return ImgName+'-'+astr
+  };
+  
+}
+
+
+function export_regionalImg(regionImage,ImgName,selectRegion){
+  download.unlisten();
+  download.setDisabled(false);
+  var listen = download.onClick(function(){
+    Map.addLayer(regionImage.select(0),visParam,'regional');
+    var outputImg = ee.Image([regionImage.select(0).multiply(1000).toInt16(),regionImage.select(1).toInt16()]);
+    print(outputImg)
+    Map.centerObject(selectRegion);
+    Export.image.toDrive({
+      image:outputImg,
+      description:ImgName,
+      region:selectRegion,
+      scale:500,
+      folder:'CIFolder',
+      maxPixels:1E13});
+    
+    download.setDisabled(true);
+    // Map.drawingTools().stop();
+    // isSelfDefine.setValue(false);
+  })
+}
+
+
+
+
+
+
+
