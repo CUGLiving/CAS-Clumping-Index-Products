@@ -60,6 +60,8 @@ panel4.style().set({
   position: 'top-center',
   padding:'0px'
 });
+
+var urlLabel = ui.Label('download ThumbNailImag',{shown:false});
 var download = ui.Button({label:'download',style:{stretch:'horizontal'}});
 var globalExport = ui.Checkbox('export global image',false);
 var isSelfDefine = ui.Checkbox('draw a rectangle to export',false);
@@ -126,9 +128,9 @@ function getNextMonth(date) {
   var arr = date.split('-');  
   var year = arr[0]; 
   var month = arr[1]; 
-  var day = arr[2]; 
-  var days = new Date(year, month, 0);  
-  days = days.getDate(); //get number of day
+  // var day = arr[2]; 
+  // var days = new Date(year, month, 0);  
+  // days = days.getDate(); //get number of day
   var year2 = year;  
   var month2 = parseInt(month) + 1;  
   if (month2 == 13) {  
@@ -145,7 +147,7 @@ function getNextMonth(date) {
       month2 = '0' + month2;  
   }  
 
-  var t2 = year2 + '-' + month2 + '-' + day;  
+  var t2 = year2 + '-' + month2;  
   return t2;  
 } 
 
@@ -157,8 +159,8 @@ function constructMonthSelect(startDate,endDate){
   var arr = startDate.split('-');  
   var year = arr[0]; 
   var month = arr[1]; 
-  var day = arr[2];
-  var startMonth = year + '-' + month + '-' + day;
+  // var day = arr[2];
+  var startMonth = year + '-' + month;
   var monthList=[startMonth]
   var cumonth = startDate
   for(var i=1;i<monthCount;i++){
@@ -178,7 +180,7 @@ function constructYearSelect(startDate,endDate){
   var year2 = parseInt(date2[0])
   
   var yearInter = year2-year1;
-  var begin = year+''
+  var begin = year1+''
   var yearList=[begin]
   while(year1<year2-1){
     year1=year1+1;
@@ -190,41 +192,59 @@ function constructYearSelect(startDate,endDate){
 //yearName
 
 
-
+var mostDate = new Date('2022-02-01');
+var leastDate = new Date('2000-01-01');
+//generate Image at selected date
+function generateImage(sd,ed,type){
+  
+  var retrieveImgs = filtrateModiesImage(sd,ed);
+  var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity);
+  switch(type){
+    case 'daily':
+      var imageList = dailyCIColls.toList(dailyCIColls.size());
+      var dailyImage = ee.Image(imageList.get(0));
+      return dailyImage;
+    case 'monthly':
+      var MonthImage  = MonthlyComposite(sd,ed,dailyCIColls);
+      return MonthImage;
+    case 'yearly':
+      var YearImage = yearlyComposite(sd,ed,dailyCIColls);
+      return YearImage;
+  }
+}
 
 var dailyProduct = function(){
-  panel.remove(panel3)
-  panel.remove(panel4)
-  panel3.clear()
-  var start = startTextbox.getValue(), end = endTextbox.getValue()
+  panel.remove(panel3);
+  panel.remove(panel4);
+  panel3.clear();
+  var start = startTextbox.getValue(), end = endTextbox.getValue();
   
   //js date
   var dateStart = new Date(start);
   var dateEnd = new Date(end);
-  if((dateEnd-dateStart)<0){
-    print('the start date should less than the end date ')
+  if((dateEnd-dateStart)<0 || (dateEnd-mostDate)>0 || (leastDate-dateStart)>0){
+    alert('the start date should less than the end date and date are allowed only between 2000-01-01 to 2022-02-01');
     return 0;
   }
-  var retrieveImgs = filtrateModiesImage(start,end);
-  
-  var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity);
-  var imageList = dailyCIColls.toList(dailyCIColls.size());
+ 
   // var dictionarys = constructDic(imageList);
   // var nameList = ee.List(dictionarys.keys()).getInfo();
   var dayList = constructDaySelect(start,end);
-  
-  var index=-1
+
   
   var select = ui.Select({
     items:dayList,
     style:{stretch:'horizontal'},
     onChange:function(key){
-    index = dayList.indexOf(key);
-    var image = ee.Image(imageList.get(ee.Number(index)));
-    print(index)
-    setRegion(image,key)
+      isSelfDefine.setValue(false);
+      globalExport.setValue(false);
+      download.setDisabled(true);
+      var startDate = ee.Date(key);
+      var endDate = startDate.advance(8,'day');
+      // print(index)
+      setRegion(startDate,endDate,key,'daily');
     }
-  })
+  });
   panel3.add(select);
   panel.add(panel3)
 
@@ -240,27 +260,30 @@ var monthlyProduct = function(){
   
   var start = startTextbox.getValue(), end = endTextbox.getValue();
   //js date
+  var date1 = start.split( "-" );
+  var day = parseInt(date1[2]);
   
   var monthCount = getMonths(start,end)
-  print(monthCount)
-  if(monthCount<1){
-    print('the interval must large than 1 month')
+  var dateStart = new Date(start);
+  var dateEnd = new Date(end);
+  
+  if(monthCount<1 || (dateEnd-mostDate)>0 || (leastDate-dateStart)>0){
+  
+    alert('the interval must large than 1 month or date are allowed only between 2000-01-01 to 2022-02-01')
     return 0;
   }
-  var retrieveImgs = filtrateModiesImage(start,end);
-  var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity);
-  
   var monthList = constructMonthSelect(start,end)
-  print(monthList);
-  var monthlyImgList  = MonthlyComposite(start,end,dailyCIColls)
-  print(monthlyImgList);
   var select = ui.Select({
     items:monthList,
     style:{stretch:'horizontal'},
     onChange:function(key){
-      var index = monthList.indexOf(key);
-      var MonthImage = ee.Image(monthlyImgList.get(index));
-      setRegion(MonthImage,key)
+      isSelfDefine.setValue(false);
+      globalExport.setValue(false);
+      download.setDisabled(true);
+      var stringDate = key + '-' + day;
+      var startDate = ee.Date(stringDate);
+      var endDate = startDate.advance(1,'month');
+      setRegion(startDate,endDate,key,'monthly')
     }
   })
   panel3.add(select);
@@ -281,25 +304,30 @@ var yearlyProduct = function(){
   var year1 = parseInt(date1[0])
   var year2 = parseInt(date2[0])
   var yearCount = year2-year1
-  if(yearCount<1){
-    print('the interval must large than 1 year')
+  var dateEnd = new Date(end);
+  var dateStart = new Date(start);
+  if(yearCount<1 || (dateEnd-mostDate)>0 || (leastDate-dateStart)>0){
+    alert("the interval must large than 1 year or date are allowed only between 2000-01-01 to 2022-02-01");
+    //print('the interval must large than 1 year or date are allowed only between 2000-01-01 to 2022-02-01')
     return 0;
   }
-  var retrieveImgs = filtrateModiesImage(start,end);
-  var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity);
-  
+ 
   var yearList = constructYearSelect(start,end);
-  print(yearList)
-  var yearlyImgList = yearlyComposite(start,end,dailyCIColls);
-  
+
+  var month = parseInt(date1[1]);
+  var day = parseInt(date1[2]);
   
   var select = ui.Select({
     items:yearList,
     style:{stretch:'horizontal'},
     onChange:function(key){
-      var index = yearList.indexOf(key);
-      var yearImage = ee.Image(yearlyImgList.get(ee.Number(index)));
-      setRegion(yearImage,key);
+      isSelfDefine.setValue(false);
+      globalExport.setValue(false);
+      download.setDisabled(true);
+      var stringDate = key+'-'+month+'-'+day
+      var startDate = ee.Date(stringDate);
+      var endDate = startDate.advance(1,'year');
+      setRegion(startDate,endDate,key,'yearly')
     }
   })
   panel3.add(select);
@@ -330,7 +358,7 @@ var showImage = function(range){
   
   var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity);
   
-  var imageList = dailyCIColls.toList(dailyCIColls.size());
+  var imageList = dailyCIColls.toList(1);
   
   var image = ee.Image(imageList.get(0));
  
@@ -341,9 +369,9 @@ var showImage = function(range){
 }
 
 var dateSlider = ui.DateSlider({
-    start:ee.Date('2010-01-01'),
-    end: ee.Date('2022-01-01'),
-    value:null,
+    start:'2002-01-01',
+    end: '2022-01-01',
+    value:'2020-01-01',
     period: 1,
     style:{position:'top-center',stretch:'horizontal',height:'120px',width:'200px'},
     onChange: showImage
@@ -355,7 +383,7 @@ var dateSlider = ui.DateSlider({
 
 
 
-Map.add(dateSlider.setValue(ee.Date('2020-01-01')));
+Map.add(dateSlider);
 Map.add(panel);
 panel.add(startLabel);
 panel.add(startTextbox);
@@ -368,13 +396,13 @@ Map.drawingTools().clear();
 //*****UI*****
 
 
-function setRegion(image,ImgName){
+function setRegion(start,end,ImgName,type){
   //export image,including global and regional image
   panel.remove(panel4)
   panel4.clear()
   
   Map.drawingTools().setShown(false);
- 
+  /*
   // var countflag = ee.Number(Map.drawingTools().layers().length()).gt(0);
   // print(Map.drawingTools().layers().length())
   // "if" statement is invalid; modified at 2022-02-16
@@ -391,7 +419,7 @@ function setRegion(image,ImgName){
   //   download.setDisabled(true)
   // }
   // ee.Algorithms.If(countflag,exportFirstRegion(), download.setDisabled(true));
-  
+  */
   isSelfDefine.onChange(function(checked){
   if(checked){
     globalExport.setValue(false)
@@ -408,16 +436,17 @@ function setRegion(image,ImgName){
       var defineRegion = Map.drawingTools().layers().get(length-1).toGeometry();
       Map.drawingTools().layers().get(length-1).setLocked(true);
       // print(defineRegion);
-      var clipImage = image.clip(defineRegion);
-      export_regionalImg(clipImage,ImgName,defineRegion);
+     
+      exThumbnailImage(start,end,ImgName,type,defineRegion);
+      //export_regionalImg(clipImage,ImgName,defineRegion);// app side just allow to export a thumbnail image, uncomment if needed
       
     },100);
     Map.drawingTools().onSelect(function(){
       var selectRegion = Map.drawingTools().getSelected().toGeometry();
       print(selectRegion);
       print('cliping by selectedRegion....');
-      var clipImage = image.clip(selectRegion);
-      export_regionalImg(clipImage,ImgName,selectRegion);
+      exThumbnailImage(start,end,ImgName,type,defineRegion);
+      //export_regionalImg(clipImage,ImgName,selectRegion); // app side just allow to export a thumbnail image, uncomment if needed
     })
     Map.drawingTools().onEdit(drawGeometry);
     Map.drawingTools().onDraw(drawGeometry);
@@ -430,28 +459,31 @@ function setRegion(image,ImgName){
   }
   })
   
-  
+ 
   globalExport.onChange(function(checked){
   if(checked){
     isSelfDefine.setValue(false)
     download.setDisabled(false)
+    download.unlisten();
     download.onClick(function(){
       
-      var outputImg = ee.Image([image.select(0).multiply(1000).toInt16(),image.select(1).toInt16()]);
-      export_globalImg(outputImg,ImgName)
-      Map.addLayer(image.select(0),visParam,'global');
-      print(outputImg);
-      
+      // var outputImg = ee.Image([image.select(0).multiply(1000).toInt16(),image.select(1).toInt16()]);
+      //export_globalImg(outputImg,ImgName)
+      var image = generateImage(start,end,type);
+      Map.addLayer(image.select(0),visParam,ImgName+'-global');
+      export_globalImg(image,ImgName+'-global');
+      //print(outputImg);
+      download.setDisabled(true);
     })
     panel4.remove(download);
     panel4.add(download);
   }
   })
   
-  panel4.add(globalExport);
+  panel4.add(globalExport); //export global image is impossible from app side, release it if needed
   panel4.add(isSelfDefine);
   panel4.add(download)
-  // download.setDisabled(true)
+  //download.setDisabled(true)
   panel.add(panel4);
   
   
@@ -520,11 +552,11 @@ function alignImage(startDate,MCD43A1Band1s,MCD43A2Band1Quality,aveObserImage,MC
   var MCDbandQualityList = MCD43A2Band1Quality.toList(qualityLength); //#daily
   
   function ndvi(image){
-      return image.normalizedDifference(['Nadir_Reflectance_Band2','Nadir_Reflectance_Band1']).rename(['ndvi'])
+      return image.normalizedDifference(['Nadir_Reflectance_Band2','Nadir_Reflectance_Band1']).rename(['ndvi']);
   }
 
-  var MCD43A4DailyNDVIs=MCD43A4.select(['Nadir_Reflectance_Band1','Nadir_Reflectance_Band2']).map(ndvi)
-  var NDVIList = MCD43A4DailyNDVIs.toList(MCD43A4DailyNDVIs.size()) //#daily
+  var MCD43A4DailyNDVIs=MCD43A4.select(['Nadir_Reflectance_Band1','Nadir_Reflectance_Band2']).map(ndvi);
+  var NDVIList = MCD43A4DailyNDVIs.toList(MCD43A4DailyNDVIs.size()); //#daily
 
   //# copy zenith 8 times for the same length of angle observations to that of brdf
   //cimbine each data band to one image
@@ -561,7 +593,7 @@ function alignImage(startDate,MCD43A1Band1s,MCD43A2Band1Quality,aveObserImage,MC
     // the date property still exists
     return ee.Image(brdfImage).addBands([ee.Image(NDVIList.get(brIndex)),ee.Image(averAngleList.get(obserIndex)),quality,snowBand,fcoverImg]);
       
-  })
+  });
   
   return ee.ImageCollection.fromImages(imageList);
 }
@@ -583,8 +615,8 @@ var solarAngleList = ee.List([ee.Image(10),ee.Image(20),ee.Image(30),ee.Image(40
 
 //# landcover and empirical parameters
 
-var defaultVisualizationVis = {min: 0.0,max: 2000,gamma: 2.0} //# the different style to Javascript
-var angleVisualizationVis = {min: 0.0,max: 18000,gamma: 2.0} // the different style to Javascript
+var defaultVisualizationVis = {min: 0.0,max: 2000,gamma: 2.0} ;//# the different style to Javascript
+var angleVisualizationVis = {min: 0.0,max: 18000,gamma: 2.0}; // the different style to Javascript
 var ndvivisParams={min: 0.0,max: 1, palette:['black','red','green']};
 
 
@@ -706,74 +738,44 @@ function maskMagitude(himg){
 }
 //composite images within 8 observation by max values
 
-
-
-
 function MonthlyComposite(start,end,imgCollection){
-    var startDate = ee.Date(start);
-    var endDate = ee.Date(end);
 
-    var months = endDate.difference(startDate,'month').int();
+    var Collection = imgCollection.filterDate(start,end);
+   
+    var highCI = Collection.map(maskHighest).mean();
+    var magituteCI = Collection.map(maskMagitude).mean();
+    var finalCI = highCI.unmask(magituteCI);
     
-    var irSequence = ee.List.sequence(0,months.subtract(1),1);
-    print(irSequence)
+    // Map.addLayer(finalCI,visParam,'finCI');
+    var commonMask =  highCI.mask().eq(0).bitwiseAnd(magituteCI.mask().eq(1));
+    var qaband = highCI.mask().where(commonMask,2);
+    var fqaband = qaband.updateMask(qaband.gt(0)).where(qaband.eq(1),0);
     
-    function compositCI(num,MonthList){
-  
-      var filterStart = startDate.advance(num,'month');
-      var filterend = startDate.advance(ee.Number(num).add(1),'month');
-      var Collection = imgCollection.filterDate(filterStart,filterend);
-     
-      var highCI = ee.ImageCollection(Collection.map(maskHighest)).reduce(ee.Reducer.mean());
-      var magituteCI = ee.ImageCollection(Collection.map(maskMagitude)).reduce(ee.Reducer.mean());
-      var finalCI = highCI.unmask(magituteCI);
-      
-      // Map.addLayer(finalCI,visParam,'finCI');
-      var commonMask =  highCI.mask().eq(0).bitwiseAnd(magituteCI.mask().eq(1));
-      var qaband = highCI.mask().where(commonMask,2);
-      var fqaband = qaband.updateMask(qaband.gt(0)).where(qaband.eq(1),0);
-      
-      var timestamp = ee.Date(filterStart.format("YYYY-MM-dd"));
-      
-      var finalImg = ee.Image([finalCI,fqaband]).rename(['CI','QA']).set("system:time_start", timestamp);
-      
-      return ee.List(MonthList).add(finalImg);
-  }
-    var monthlyImgs = ee.List(irSequence.iterate(compositCI,ee.List([])));
+    var timestamp = ee.Date(start.format("YYYY-MM-dd"));
+    
+    var finalImg = ee.Image([finalCI,fqaband]).rename(['CI','QA']).set("system:time_start", timestamp);
+    
     // return ee.ImageCollection.fromImages(monthlyImgs);
-    return monthlyImgs
+    return finalImg
 }
 
 
 function yearlyComposite(start,end,imgCollection){
-    var startDate = ee.Date(start);
-    var endDate = ee.Date(end);
-    var years = endDate.difference(startDate,'year').int();
-    var irSequence = ee.List.sequence(0,ee.Number(years).subtract(1),1);
-      
-    function compositCI(num,yearList){
-      var filterStart = startDate.advance(num,'year');
-      var filterend = startDate.advance(ee.Number(num).add(1),'year');
-      var Collection = imgCollection.filterDate(filterStart,filterend);
-     
-      var highCI = ee.ImageCollection(Collection.map(maskHighest)).reduce(ee.Reducer.mean());
-      var magituteCI = ee.ImageCollection(Collection.map(maskMagitude)).reduce(ee.Reducer.mean());
+    
+      var Collection = imgCollection.filterDate(start,end);
+      var highCI = Collection.map(maskHighest).mean();
+      var magituteCI = Collection.map(maskMagitude).mean();
       var finalCI = highCI.unmask(magituteCI);
-      
       // Map.addLayer(finalCI,visParam,'finCI');
       var commonMask =  highCI.mask().eq(0).bitwiseAnd(magituteCI.mask().eq(1))
       var qaband = highCI.mask().where(commonMask,2);
       var fqaband = qaband.updateMask(qaband.gt(0)).where(qaband.eq(1),0);
       
-      var timestamp = ee.Date(filterStart.format("YYYY"));
+      var timestamp = ee.Date(start.format("YYYY"));
       var finalImg = ee.Image([finalCI,fqaband]).rename(['CI','QA']).set("system:time_start", timestamp);
-      return ee.List(yearList).add(finalImg);
-  }
-  var yearlyImgs = ee.List(irSequence.iterate(compositCI,ee.List([])));
-  return yearlyImgs;
+      
+      return finalImg;
 }
-
-
 
 // export Image
 var globalNet = ee.FeatureCollection('projects/ee-lrvings/assets/GLOBAL60prj');
@@ -783,10 +785,10 @@ function export_globalImg(CIImage,ImgName){
   
   for (var i=0; i<9; i++){
     var bound = ee.Feature(featureList.get(i)).geometry();
-    var name = cat(ImgName,i)
+    var name = cat(ImgName,i);
     Export.image.toDrive({
       image:CIImage,
-      description:ImgName,
+      description:name,
       region:bound,
       scale:500,
       folder:'CIFolder',
@@ -800,28 +802,44 @@ function export_globalImg(CIImage,ImgName){
 
 
 function export_regionalImg(regionImage,ImgName,selectRegion){
-  download.unlisten();
-  download.setDisabled(false);
-  var listen = download.onClick(function(){
-    Map.addLayer(regionImage.select(0),visParam,'regional');
-    var outputImg = ee.Image([regionImage.select(0).multiply(1000).toInt16(),regionImage.select(1).toInt16()]);
-    print(outputImg)
-    Map.centerObject(selectRegion);
-    Export.image.toDrive({
-      image:outputImg,
-      description:ImgName,
-      region:selectRegion,
-      scale:500,
-      folder:'CIFolder',
-      maxPixels:1E13});
-    
-    download.setDisabled(true);
-    // Map.drawingTools().stop();
-    // isSelfDefine.setValue(false);
-  })
+
+  var outputImg = ee.Image([regionImage.select(0).multiply(1000).toInt16(),regionImage.select(1).toInt16()]);
+  
+  Export.image.toDrive({
+    image:outputImg,
+    description:ImgName,
+    region:selectRegion,
+    scale:500,
+    folder:'CIFolder',
+    maxPixels:1E13});
 }
 
 
+//for app users can download but a thumbnail image
+function exThumbnailImage(startDate,endDate,ImgName,type,selectRegion){
+  // panel4.remove(urlLabel)
+  download.unlisten();
+  download.setDisabled(false);
+  // var outputImg = ee.Image([regionImage.select(0).multiply(1000).toInt16(),regionImage.select(1).toInt16()]);
+  var listen = download.onClick(function(){
+     var image = generateImage(startDate,endDate,type);
+     var clipImage = image.clip(selectRegion);
+     Map.addLayer(clipImage.select(0),visParam,ImgName+'-regional');
+     export_regionalImg(clipImage,ImgName+'-regional',selectRegion)
+     Map.centerObject(selectRegion);
+    // var downloadParameters={
+    //   name: 'CI-ThumpNail',
+    //   scale:500,
+    //   crs:'EPSG:4326',
+    //   region:selectRegion.toGeoJSONString()
+    // };
+    // var url = outputImg.getDownloadURL(downloadParameters);
+    // urlLabel.setUrl(url);
+    // urlLabel.style().set({shown: true});
+    // panel4.add(urlLabel);
+    download.setDisabled(true);
+  })
+}
 
 
 
