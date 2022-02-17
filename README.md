@@ -1,5 +1,6 @@
 # Clumping-Index-Products
 CI (clumping index) indicates the spatial distribution pattern of foliage. CI=1: random distribution; CI>1: regular distribution; CI<1: clumping distribution;
+All methods and technologies are referenced from the puiblications in the end of this page;
 
 Google Earth Engine JS code produce Clumping Index to download;
 The program are designed to provide all products so long as the input data is already; 
@@ -22,7 +23,7 @@ Some instructions as following:
  4) All products include 2 bands (CI band and Quality band) and are named by its date, more information about products can see the reference in the end of this page;
  5) I give a name of exported folder ("CIFolder"), you can modify as you like;
 The fast open link "https://code.earthengine.google.com/02b1ac3eb93bf94dda3adb266a1894a3"; The GEE app "https://lrvings.users.earthengine.app/view/civiewer" can be used to view products;
-Although I am not the author of following publications, I still recommend you to cite them if you got help in your work form here; and please to share my work to your friends if they need;
 
+I strongly recommend you to cite the following references if you got help in your work form here; and please to share my work to your friends if they need;
 [1] Wei, S. and H. Fang (2016). "Estimation of canopy clumping index from MISR and MODIS sensors using the normalized difference hotspot and darkspot (NDHD) method: The influence of BRDF models and solar zenith angle." Remote Sensing of Environment 187: 476-491.
 [2] Wei, S., H. Fang, C. B. Schaaf, L. He and J. M. Chen (2019). "Global 500 m clumping index product derived from MODIS BRDF data (2001–2017)." Remote Sensing of Environment 232: 111296.
