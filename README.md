@@ -9,11 +9,11 @@ Expecting fCover and specific Global land cover are required to upload manually,
 The author assigned global land cover was download from http://bioval.jrc.ec.europa.eu/products/glc2000/glc2000.php; I have uploaded it.
 Under the retriction, The fCover input has not been available completely.
 
-I intend to upload monthly fCover within 2002-2020, so the final products will be downloaded during this interval, but anyone can downloaded fCover at other date from "https://land.copernicus.vgt.vito.be/PDF/portal/Application.html#Home" then uploaded to your own GEE assets; this means you need do a minor mondifidation in this program to get your desired products;
+I will upload monthly fCover within 2010-2020, so the final products will be downloaded during this interval, but anyone can downloaded fCover at other date from "https://land.copernicus.vgt.vito.be/PDF/portal/Application.html#Home" then uploaded to your own GEE assets; this means you need do a minor mondifidation in this program to get your desired products;
 
 After the corresponding data are already; all daily, monthly, yearly products can be downloaded from this code;
 
-up to 2022-02-17, the fCover only during 2019 have been uploaded, so the CI products in 2019 are available for download; The fFcoer images are continuously uploading...,during the days of uploading, you still can download products during not confind 2019 because the program adopted the currently available fCover to produce. 
+up to 2022-02-17, the fCover only during 2019 have been uploaded, so the CI products in 2019 are available for download; The fFcoer images are continuously uploading...,during these days, you can still download products during not confind 2019 because the program took the available fCover to produce. 
 
 
 
