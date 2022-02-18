@@ -3,7 +3,7 @@ CI (clumping index) indicates the spatial distribution pattern of foliage. CI=1:
 All methods and technologies are referenced from the puiblications on the end of this page;
 
 Google Earth Engine JS code produce Clumping Index to download;
-The program are designed to provide all products so long as the input data is already; 
+The program are designed to provide all products (daily, montly, yearly) so long as the input data is already; 
 
 Expecting fCover and specific Global land cover are required to upload manually, other all input data are provided by GEE Data Catalog.
 The author assigned global land cover was download from http://bioval.jrc.ec.europa.eu/products/glc2000/glc2000.php; I have uploaded it.
@@ -11,9 +11,11 @@ Under the retriction, The fCover input has not been available completely.
 
 I intend to upload monthly fCover within 2002-2020, so the final products will be downloaded during this interval, but anyone can downloaded fCover at other date from "https://land.copernicus.vgt.vito.be/PDF/portal/Application.html#Home" then uploaded to your own GEE assets; this means you need do a minor mondifidation in this program to get your desired products;
 
-so up to 2022-02-17, the daily, monthly, yearly CI products in 2019 are available for download;
-
 After the corresponding data are already; all daily, monthly, yearly products can be downloaded from this code;
+
+up to 2022-02-17, the fCover only during 2019 have been uploaded, so the CI products in 2019 are available for download; The fFcoer images are continuously uploading...,during the days of uploading, you still can download products during not confind 2019 because the program adopted the currently available fCover to produce. 
+
+
 
 Notes: this code is designed to provide an interactive download tool; after you run this code in GEE, an UI page is appeared and you need type two dates (the start date and end date of products you want), then you can click to produce what products do you need and select to export a global or regional image to your Google derive;
 Some instructions as following:
