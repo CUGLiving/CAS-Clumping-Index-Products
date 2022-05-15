@@ -1,0 +1,963 @@
+//********* manually uploaded data
+// each fcover imagecollection has at least 100 pieces of image, merge them for convenience
+var fcover12to2020 = ee.ImageCollection("users/lrvings/FCOVER");
+var fcover03to12 = ee.ImageCollection("users/lrvings/FCOVER2");
+var fcover00to03 = ee.ImageCollection("users/lrvings/FCOVER3");
+var fcover = fcover12to2020.merge(fcover03to12).merge(fcover00to03).sort('system:time_start');
+
+//# landcover that is used to define empirical parameters and be a mask of result
+var LandCover_2020 = ee.Image('users/lrvings/GLC2000');
+
+
+var oriClass = ee.List([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]);
+var detClass = ee.List([2,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0]);
+var maskClass = ee.List([0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0]);
+//reclassified LandCover_2020 to determine coefficients in CI production
+var GLC2000 = LandCover_2020.reproject('EPSG:4326',null,500).remap(oriClass,detClass,0);
+//reclassified LandCover_2020 to filter CI product
+var maskGLC = LandCover_2020.reproject('EPSG:4326',null,500).remap(oriClass,maskClass,0);
+
+// covert to list for convenient selection
+var fcoverList = fcover.toList(fcover.size())
+var latestDate = ee.Image(fcoverList.get(-1)).get('system:time_start')
+var pe = ee.Image(2.718281828459);
+//********* be ready for manually uploaded data
+// var isoValues = ee.List.sequence(0,1000,4);
+// var volValues = ee.List.sequence(0,1000,4);
+// var geoValues = ee.List.sequence(0,400,2);
+
+
+
+//*****UI*****
+// image visualization
+var visParam = {
+ min: 0.3,
+ max: 1,
+ palette: '#006400,FFFF00'
+};
+var startLabel = ui.Label({value:'Start date:',style:{fontFamily:'serif',color:'green',margin:'0px 0px'}})
+var endLabel = ui.Label({value:'End date:',style:{fontFamily:'serif',color:'green',margin:'0px 0px'}})
+var startTextbox = ui.Textbox({
+  placeholder:'2019-01-01',
+  style:{position:'top-left'}
+});
+var endTextbox = ui.Textbox({
+  placeholder:'2020-01-01',
+  style:{position:'top-left'}
+});
+var panel = ui.Panel();
+panel.style().set({
+  width: '250px',
+  height:'420px',
+  position: 'bottom-right'
+});
+
+
+
+var clickPanel = ui.Panel({layout: ui.Panel.Layout.flow('horizontal')});
+clickPanel.style().set({
+  width: '240px',
+  height:'50px',
+  position: 'top-center',
+  padding:'0px'
+});
+
+var selectPanel = ui.Panel();
+selectPanel.style().set({
+  width: '240px',
+  height:'120px',
+  position: 'top-center',
+  padding:'0px'
+});
+
+var resultPanel = ui.Panel({layout: ui.Panel.Layout.flow('horizontal')});
+resultPanel.style().set({
+  width: '240px',
+  height:'50px',
+  position: 'top-center',
+  padding:'0px'
+});
+
+// var urlLabel = ui.Label('download ThumbNailImag',{shown:false});
+var download = ui.Button({label:'download',style:{stretch:'horizontal'}});
+var view = ui.Button({label:'view',style:{stretch:'horizontal'}});
+var globalExport = ui.Checkbox('global image',false);
+var isSelfDefine = ui.Checkbox('draw a rectangle to export/view',false);
+
+//legend ##############################
+
+function ColorBar(palette){
+  return ui.Thumbnail({
+    image:ee.Image.pixelLonLat().select(0),
+    params:{
+      bbox:[0,0,1,0.1],
+      dimensions:'90x10',
+      format:'png',
+      min:0.3,
+      max:1.0,
+      palette:palette,
+    },
+    style:{stretch:'horizontal',margin:'0px 1px'},
+  });
+}
+function makeLegend(){
+  
+  var labelPanel = ui.Panel(
+    [
+      ui.Label(0.3,{margin:'1px 1px',fontSize: '10px',fontWeight: 'bold'}),
+      ui.Label(1.0,{margin:'1px 1px',fontSize: '10px',fontWeight: 'bold',textAlign:'right',stretch:'horizontal'})
+    ],
+    ui.Panel.Layout.flow('horizontal'));
+  return ui.Panel([ColorBar(visParam.palette), labelPanel]);
+}
+var LEGEND_TITLE_STYLE = {
+  fontSize: '12px',
+  fontWeight: 'bold',
+  stretch: 'horizontal',
+  textAlign: 'center',
+  margin: '3px',
+};
+
+var colorBar = makeLegend();
+var legend = ui.Panel(
+    [
+    ui.Label('Clumping Index', LEGEND_TITLE_STYLE),
+    colorBar
+    ],
+  ui.Panel.Layout.flow('vertical'),
+  {width:'200px',position:'bottom-left'})
+
+// legend.remove(colorBar);
+Map.add(legend);
+
+//legend #########################################
+
+
+function formatDate(date) {
+
+  var d = new Date(date),
+      month = '' + (d.getMonth() + 1),
+      day = '' + d.getDate(),
+      year = d.getFullYear();
+
+  if (month.length < 2) 
+      month = '0' + month;
+  if (day.length < 2) 
+      day = '0' + day;
+
+  return [year, month, day].join('-');
+}
+//day name
+
+
+
+// generate date list to select
+function constructDateList(startDate,endDate,type){
+
+  // var day = arr[2];
+  var dateList=[]
+  
+  while(startDate.getTime()<endDate.getTime()){
+    var Y = startDate.getFullYear();
+    var M = startDate.getMonth() + 1;
+    var D = startDate.getDate()
+    switch(type){
+      case 'daily':
+         startDate.setDate(startDate.getDate()+1);
+         var days = Y + (M < 10 ? "-0" : "-") + M + (D < 10 ? "-0" : "-") + D;
+         dateList.push(days)
+         continue;
+      case 'monthly':
+         startDate.setMonth(startDate.getMonth()+1);
+       
+         var months = Y + (M < 10 ? "-0" : "-") + M
+         dateList.push(months)
+         continue;
+      case 'yearly':
+         startDate.setFullYear(startDate.getFullYear()+1);
+         dateList.push(Y+'')
+         continue;
+    }
+
+  }
+  return dateList
+}
+
+
+
+var mostDate = new Date('2021-01-01');
+var leastDate = new Date('2000-01-01');
+
+
+//generate Image at selected date
+
+function generateImage(sd,ed,type){
+
+  var retrieveImgs = filtrateModiesImage(sd,ed);
+  var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity);
+  
+  // print(sgCIColls)
+  switch(type){
+    case 'daily':
+      var sgCIdaily = ee.ImageCollection.fromImages(SGFilterForCi(dailyCIColls));
+      var imageList = sgCIdaily.toList(sgCIdaily.size());
+      var dailyImage = ee.Image(imageList.get(0));
+      //Map.addLayer(visImg,visParam,ImgName+'-global');
+      return dailyImage;
+      
+    case 'monthly':
+      var sgCIMonthly = ee.ImageCollection.fromImages(SGFilterForCi(dailyCIColls));
+      var SGMonthlyComposite  = MonthlyComposite(sd,sgCIMonthly);
+      
+      return SGMonthlyComposite;
+      // return MonthImage;
+    case 'yearly':
+      
+      var yearImgList = ee.List(dailyCIColls.toList(dailyCIColls.size())).slice(0,dailyCIColls.size(),3)
+      var yearCollection = ee.ImageCollection.fromImages(yearImgList);
+      
+      var sgCIYearly = ee.ImageCollection.fromImages(SGFilterForCi(yearCollection));
+      var SGYearlyComposite  = yearlyComposite(sd,sgCIYearly);
+      
+      return SGYearlyComposite;
+    default: break;
+  }
+}
+
+//check if the input is of date format
+var inputCheck = function(start,end){
+  var dateStart = new Date(start);
+  var dateEnd = new Date(end);
+  if(dateStart.toString() == "Invalid Date" || dateEnd.toString()== 'Invalid Date' ){
+    alert('Invalid time value')
+    return false
+  }else{
+    if((dateEnd-dateStart)<0 || (dateEnd-mostDate)>0 || (leastDate-dateStart)>0){
+      alert('the start date should less than the end date and date are allowed only between 2000-01-01 to 2020-05-01')
+      return false
+    }
+    var datesStr = new Array(dateStart,dateEnd)
+    return datesStr
+  }
+  
+}
+
+//link to buttons by type of temporal resolution
+var temporalProduct = function(type){
+  panel.remove(selectPanel);
+  panel.remove(resultPanel);
+  selectPanel.clear();
+  var start = startTextbox.getValue(), end = endTextbox.getValue();
+  var dateArray = inputCheck(start,end)
+  if(!dateArray){
+    return 0
+  }
+  var startDate = dateArray[0]
+  var endDate = dateArray[1]
+  addDateList(startDate,endDate,type);
+}
+// add date list to select widget
+var addDateList = function(startDate,endDate,type){
+
+   var dateList = constructDateList(startDate,endDate,type);
+   var day = startDate.getDate();
+   var month = startDate.getMonth()+1;
+  
+   var istartDate = 0, iendDate = 0,stringDate='';
+   var select = ui.Select({
+    items:dateList,
+    style:{stretch:'horizontal'},
+    onChange:function(key){
+      // isSelfDefine.setValue(false);
+      // globalExport.setValue(false);
+      download.setDisabled(true);
+      view.setDisabled(true);
+      switch(type){
+        case 'daily':
+          istartDate = ee.Date(key);
+          iendDate = istartDate.advance(8,'day');
+          break;
+        case 'monthly':
+          stringDate = key + '-' + day;
+          istartDate = ee.Date(stringDate);
+          iendDate = istartDate.advance(1,'month');
+          break;
+        case 'yearly':
+          stringDate = key+'-'+month+'-'+day;
+          istartDate = ee.Date(stringDate);
+          if(key==2020){
+            iendDate = latestDate
+            iendDate = istartDate.advance(1,'year');
+          }else{
+            iendDate = istartDate.advance(1,'year');
+          }
+          break;
+      }
+      //istartDate and iendDate is the start and end of desired CI products
+      //key: to transfer date information
+      //type: 'daily','monthly','yearly',determine what composite is needed
+      selectExport(istartDate,iendDate,key,type);
+      // print(index)
+      }});
+   selectPanel.add(select);
+   selectPanel.add(globalExport); 
+   selectPanel.add(isSelfDefine);
+   panel.add(selectPanel)
+  
+   
+}
+
+
+
+var dayButton = ui.Button({label:'daily',style:{stretch:'horizontal'},
+  onClick:function(){
+    temporalProduct('daily');
+  }
+});
+var monthButton = ui.Button({label:'monthly',style:{stretch:'horizontal'},
+  onClick:function(){
+    temporalProduct('monthly');
+  }
+});
+var yearButton = ui.Button({label:'yearly',style:{stretch:'horizontal'},
+  onClick: function(){
+    temporalProduct('yearly');
+  }
+});
+
+clickPanel.add(dayButton);
+clickPanel.add(monthButton);
+clickPanel.add(yearButton);
+
+// coupled with dateSlider, click event.
+var showImage = function(range){
+  
+  var startDate = ee.Date(range.start().format(null, 'UTC'));
+  
+  var endDate = startDate.advance(8,'day');
+
+  var retrieveImgs = filtrateModiesImage(startDate,endDate);
+  
+  
+  var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity);
+  
+  var imageList = dailyCIColls.toList(1);
+  
+  var image = ee.Image(imageList.get(0));
+  var layerName = startDate.format(null, 'UTC').slice(0,10);
+  Map.addLayer(image.select(0),visParam,layerName.getInfo());
+ 
+};
+
+var dateSlider = ui.DateSlider({
+    start:'2002-01-01',
+    end: '2022-01-01',
+    value:'2020-01-01',
+    period: 1,
+    style:{position:'top-center',stretch:'horizontal',height:'120px',width:'200px'},
+    onChange: showImage
+  });
+
+// selectPanel.add(select);
+Map.add(dateSlider);
+Map.add(panel);
+
+panel.add(startLabel);
+panel.add(startTextbox);
+panel.add(endLabel);
+panel.add(endTextbox);
+panel.add(clickPanel);
+Map.drawingTools().setShown(false);
+Map.drawingTools().clear();
+
+//*****UI*****
+
+
+//export image,including global and regional image
+function selectExport(start,end,ImgName,type){
+ 
+  
+  panel.remove(resultPanel)
+  resultPanel.clear()
+  Map.drawingTools().setShown(false);
+  isSelfDefine.onChange(function(checked){
+  if(checked){
+   
+    globalExport.setValue(false);
+    
+    Map.drawingTools().setShown(true);
+    Map.drawingTools().clear();
+    Map.drawingTools().setLinked(false);
+    Map.drawingTools().setDrawModes(['rectangle']);
+    Map.drawingTools().addLayer([]);
+    Map.drawingTools().setShape('rectangle');
+    
+    var drawGeometry = ui.util.debounce(function(){
+      view.unlisten();
+      view.setDisabled(false);
+      download.unlisten();
+      download.setDisabled(false);
+      var length = Map.drawingTools().layers().length()
+      var defineRegion = Map.drawingTools().layers().get(length-1).toGeometry();
+      Map.drawingTools().layers().get(length-1).setLocked(true);
+      // print(defineRegion);
+      regional_Interface(start,end,ImgName,type,defineRegion);
+      // Map.drawingTools().stop();
+      //export_regionalImg(clipImage,ImgName,defineRegion);// app side just allow to export a thumbnail image, uncomment if needed
+      
+    },100);
+   
+    Map.drawingTools().onEdit(drawGeometry);
+    Map.drawingTools().onDraw(drawGeometry);
+    Map.drawingTools().onErase(drawGeometry);
+    Map.drawingTools().setShown(true);
+    
+  }else{
+    Map.drawingTools().clear();
+    Map.drawingTools().setShown(false);
+  }
+  })
+  
+  
+  Map.drawingTools().onSelect(function(){
+    view.unlisten();
+    view.setDisabled(false);
+    download.unlisten();
+    download.setDisabled(false);
+    var selectRegion = Map.drawingTools().getSelected().toGeometry();
+    regional_Interface(start,end,ImgName,type,selectRegion);
+  })
+ 
+  globalExport.onChange(function(checked){
+  if(checked){
+  
+    isSelfDefine.setValue(false)
+    view.setDisabled(false);
+    view.unlisten();
+    view.onClick(function(){
+      
+      var image = generateImage(start,end,type);
+      Map.addLayer(image.select('CI'),visParam,ImgName+'-global');
+      view.setDisabled(true);
+    })
+    download.setDisabled(false)
+    download.unlisten();
+    download.onClick(function(){
+      // var outputImg = ee.Image([image.select(0).multiply(1000).toInt16(),image.select(1).toInt16()]);
+      //export_globalImg(outputImg,ImgName)
+      var image = generateImage(start,end,type);
+      
+      Map.addLayer(image.select('CI'),visParam,ImgName+'-global');
+     
+      export_globalImg(image,ImgName+'-global');
+      //print(outputImg);
+      download.setDisabled(true);
+    })
+   
+  }
+  })
+  
+  resultPanel.add(view)
+  resultPanel.add(download)
+  //download.setDisabled(true)
+  panel.add(resultPanel);
+  
+  
+  
+}
+
+
+
+function filtrateModiesImage(start,end){
+  //js date
+  var dateStart = new Date(start);
+  var dateEnd = new Date(end);
+
+  
+  var startDate = ee.Date(start);
+  var endDate = ee.Date(end);
+  
+  //ROSS-lI MODEL kernel parameters: iso, vol, geo; daily, 500m
+  var MCD43A1Band1s = ee.ImageCollection("MODIS/006/MCD43A1").filterDate(startDate,endDate).select(['BRDF_Albedo_Parameters_Band1_iso', 
+  'BRDF_Albedo_Parameters_Band1_vol',
+  'BRDF_Albedo_Parameters_Band1_geo',
+  'BRDF_Albedo_Band_Mandatory_Quality_Band1']);//.map(hQuity);
+  
+ 
+ 
+  
+  //band quality for identification of retrieval quality
+  var MCD43A2Band1Quality = ee.ImageCollection("MODIS/006/MCD43A2").filterDate(startDate,endDate).select(['Snow_BRDF_Albedo','BRDF_Albedo_Band_Quality_Band1']);
+  // for calculate NDVI
+  var MCD43A4=ee.ImageCollection("MODIS/006/MCD43A4").filterDate(startDate,endDate);
+  
+  var days = (dateEnd-dateStart)/(1000 * 60 * 60 * 24);
+  if(days<8){
+    endDate = endDate.advance(8,'day');
+  }
+ 
+  //for acquiration of SZA and View Zenith of Terra during the overpass, 8-day
+  var observationSize = ee.ImageCollection("MODIS/006/MOD09A1").filterDate(startDate,endDate).select(['SolarZenith']).size();
+  
+  
+  var obserseBandsTerra=ee.ImageCollection("MODIS/006/MOD09A1").filterDate(startDate,endDate).select(['SolarZenith']);
+  var obserseBandsAqur=ee.ImageCollection("MODIS/006/MYD09A1").filterDate(startDate,endDate).select(['SolarZenith']);
+  //MYD09A1 from 2002-07-04
+ 
+  //add 'ViewZenith','RelativeAzimuth' if required
+  var isAqurFewer = obserseBandsAqur.size().lt(obserseBandsTerra.size());
+ 
+  var overLength = obserseBandsTerra.size().subtract(obserseBandsAqur.size());
+  var overCollection = ee.ImageCollection.fromImages(obserseBandsTerra.toList(observationSize).slice(0,overLength));
+  
+  var obserseAqur = overCollection.merge(obserseBandsAqur);
+  //var modiObserAqur = ee.Algorithms.If(isAqurFewer,,obserseBandsAqur)
+ 
+
+
+  
+    
+  var obTerra = obserseBandsTerra.toList(observationSize);
+  var obAqur = obserseAqur.toList(observationSize);
+
+  var averageSolarZenith = obTerra.map(function(TerraObser){
+    
+    var index = obTerra.indexOf(TerraObser);
+    var AqurObser = obAqur.get(index);
+    return ee.Image(TerraObser).add(AqurObser).divide(2);
+    
+  });
+  
+  
+  var aveObserImage = ee.ImageCollection.fromImages(averageSolarZenith);
+  var retriImgCollection = alignImage(MCD43A1Band1s,MCD43A2Band1Quality,aveObserImage,MCD43A4);
+  
+  
+  return retriImgCollection;
+}
+// make sure each piece of MCD43A1 image has its corresponding observation information 
+function alignImage(MCD43A1Band1s,MCD43A2Band1Quality,aveObserImage,MCD43A4){
+
+
+  
+  var MCDBrdfList = MCD43A1Band1s.toList(MCD43A1Band1s.size()); //#daily
+  
+  //pick up date;added at 2022-02-15
+  var findate = function(image,dateList){
+    return ee.List(dateList).add(ee.Date(image.get('system:time_start')).format('YYYY-MM'))
+  }
+  //pick up date;added at 2022-02-15
+  var DateList = ee.List(MCD43A1Band1s.iterate(findate,ee.List([])))
+  
+  var averAngleList = aveObserImage.toList(aveObserImage.size()); //#8-days
+  var qualityLength = MCD43A2Band1Quality.size()
+  var MCDbandQualityList = MCD43A2Band1Quality.toList(qualityLength); //#daily
+  
+  function ndvi(image){
+      return image.normalizedDifference(['Nadir_Reflectance_Band2','Nadir_Reflectance_Band1']).rename(['ndvi']);
+  }
+
+  var MCD43A4DailyNDVIs=MCD43A4.select(['Nadir_Reflectance_Band1','Nadir_Reflectance_Band2']).map(ndvi);
+  var NDVIList = MCD43A4DailyNDVIs.toList(MCD43A4DailyNDVIs.size()); //#daily
+
+  //# copy zenith 8 times for the same length of angle observations to that of brdf
+  //cimbine each data band to one image
+
+  var imageList = MCDBrdfList.map(function(brdfImage){
+
+    var brIndex = MCDBrdfList.indexOf(brdfImage);
+    var monthDate = ee.Date(DateList.get(brIndex));
+    var fcoverImgs = fcover.filterDate(monthDate,monthDate.advance(1,'day'));
+    // added at 2022-02-15
+    var fFlag = fcoverImgs.size().gt(0);
+    var fcoverImg = ee.Algorithms.If(fFlag,fcoverImgs.first().rename(['fcoverMask']),ee.Algorithms.If(
+      monthDate.difference(ee.Date('2020-05'),'day').lt(0),
+      fcover.first().rename(['fcoverMask']),
+      ee.Image(fcoverList.get(-1)).rename(['fcoverMask'])
+      ));
+    //added at 2022-02-15
+    
+    //modified at 02-16
+    var isLarge = brIndex.lt(qualityLength);
+    var MCDBandQuality = ee.Algorithms.If(isLarge,MCDbandQualityList.get(brIndex),MCDbandQualityList.get(qualityLength.subtract(ee.Number(1))));
+    //modified at 02-16
+      
+    var obserIndex = ee.Number(brIndex).divide(8).int();
+    
+    var isOutRange = obserIndex.gte(aveObserImage.size());
+    obserIndex = ee.Algorithms.If(isOutRange,-1,ee.Number(brIndex).divide(8).int());
+    
+    var quality = ee.Image(MCDBandQuality).select('BRDF_Albedo_Band_Quality_Band1');
+    var snowBand = ee.Image(MCDBandQuality).select('Snow_BRDF_Albedo');
+    // the date property still exists
+    return ee.Image(brdfImage).addBands([ee.Image(NDVIList.get(brIndex)),ee.Image(averAngleList.get(obserIndex)),quality,snowBand,fcoverImg]);
+      
+  });
+  
+  return ee.ImageCollection.fromImages(imageList);
+}
+
+
+function RetrieveCI(retrivalImage){
+    //mcd43A1Quality = retrivalImage.select('BRDF_Albedo_Band_Mandatory_Quality_Band1')
+    //band 1
+    //band 2
+    //band 3
+    //band 4
+    //band 5
+    //band 6
+    var mcd43A2Quality = retrivalImage.select('BRDF_Albedo_Band_Quality_Band1');
+    var snowBand =  retrivalImage.select('Snow_BRDF_Albedo');
+    var ndvi = retrivalImage.select('ndvi');
+    
+    
+    
+    var isoImage = retrivalImage.select('BRDF_Albedo_Parameters_Band1_iso');
+    var volImage = retrivalImage.select('BRDF_Albedo_Parameters_Band1_vol');
+    var geoImage = retrivalImage.select('BRDF_Albedo_Parameters_Band1_geo');
+    // modification by wei's code 2022-03-30
+    isoImage = isoImage.where(isoImage.gt(996),996).multiply(0.001);
+    volImage = volImage.where(volImage.gt(696),696).multiply(0.001);
+    geoImage = geoImage.where(geoImage.gt(296),296).multiply(0.001);
+   
+   
+    var zenith = retrivalImage.select('SolarZenith').multiply(0.01)
+  
+     //# to avoid underestimate in the low fcover area
+    // added fcover at 2022-02-15
+    var fcoverMask = retrivalImage.select('fcoverMask');
+    var fZenith1 = zenith.where(fcoverMask.eq(1),60); //1 means the focver<0.25
+    // added fcover at 2022-02-15
+    
+    
+    var newZenith = fZenith1.where(fZenith1.gt(60),60).where(fZenith1.eq(0),60);
+    
+    //# set solar zenoth to 60 when it's larger than 60 
+    var zenith10ForKernel = newZenith.multiply(0.1).round().multiply(10);
+    var zenithfForAB = newZenith.multiply(0.2).round().multiply(5);
+    
+  
+    // to set hotspot and darkspot kernel value in according to solar zenith; reserve five decimal places
+    var vol_hotspotImg = zenith10ForKernel.where(zenith10ForKernel.eq(0),0).where(zenith10ForKernel.eq(10),0.01211).where(zenith10ForKernel.eq(20),0.05040).where(zenith10ForKernel.eq(30),0.12150).where(zenith10ForKernel.eq(40),0.23986).where(zenith10ForKernel.eq(50),0.43646).where(zenith10ForKernel.eq(60),0.78539);
+    var vol_darkspotImg = zenith10ForKernel.where(zenith10ForKernel.eq(0),0).where(zenith10ForKernel.eq(10),-0.02886).where(zenith10ForKernel.eq(20),-0.08767).where(zenith10ForKernel.eq(30),-0.13424).where(zenith10ForKernel.eq(40),-0.122826).where(zenith10ForKernel.eq(50),0.00422).where(zenith10ForKernel.eq(60),0.34242);
+    var geo_hotspotImg = zenith10ForKernel.where(zenith10ForKernel.eq(0),0).where(zenith10ForKernel.eq(10),0.01566).where(zenith10ForKernel.eq(20),0.06829).where(zenith10ForKernel.eq(30),0.17863).where(zenith10ForKernel.eq(40),0.39868).where(zenith10ForKernel.eq(50),0.86455).where(zenith10ForKernel.eq(60),1.99999);
+    var geo_darkspotImg = zenith10ForKernel.where(zenith10ForKernel.eq(0),0).where(zenith10ForKernel.eq(10),-0.45524).where(zenith10ForKernel.eq(20),-0.91255).where(zenith10ForKernel.eq(30),-1.30940).where(zenith10ForKernel.eq(40),-1.61081).where(zenith10ForKernel.eq(50),-2.11144).where(zenith10ForKernel.eq(60),-2.99999);
+    // to set hotspot and darkspot kernel value in according to solar zenith; reserve five decimal places
+    
+    
+    // generate mask based on zenith and shape of canopy (cylinder or ellipsoid)
+    var Cymask10 = GLC2000.eq(1).bitwiseAnd(zenithfForAB.lte(10));
+    var Cymask15 = GLC2000.eq(1).bitwiseAnd(zenithfForAB.eq(15));
+    var Cymask20 = GLC2000.eq(1).bitwiseAnd(zenithfForAB.eq(20));
+    var Cymask25 = GLC2000.eq(1).bitwiseAnd(zenithfForAB.eq(25));
+    var Cymask30 = GLC2000.eq(1).bitwiseAnd(zenithfForAB.eq(30));
+    var Cymask35 = GLC2000.eq(1).bitwiseAnd(zenithfForAB.eq(35));
+    var Cymask40 = GLC2000.eq(1).bitwiseAnd(zenithfForAB.eq(40));
+    var Cymask45 = GLC2000.eq(1).bitwiseAnd(zenithfForAB.eq(45));
+    var Cymask50 = GLC2000.eq(1).bitwiseAnd(zenithfForAB.eq(50));
+    var Cymask55 = GLC2000.eq(1).bitwiseAnd(zenithfForAB.eq(55));
+    var Cymask60 = GLC2000.eq(1).bitwiseAnd(zenithfForAB.eq(60));
+    
+    var Elmask10 = GLC2000.eq(2).bitwiseAnd(zenithfForAB.lte(10));
+    var Elmask15 = GLC2000.eq(2).bitwiseAnd(zenithfForAB.eq(15));
+    var Elmask20 = GLC2000.eq(2).bitwiseAnd(zenithfForAB.eq(20));
+    var Elmask25 = GLC2000.eq(2).bitwiseAnd(zenithfForAB.eq(25));
+    var Elmask30 = GLC2000.eq(2).bitwiseAnd(zenithfForAB.eq(30));
+    var Elmask35 = GLC2000.eq(2).bitwiseAnd(zenithfForAB.eq(35));
+    var Elmask40 = GLC2000.eq(2).bitwiseAnd(zenithfForAB.eq(40));
+    var Elmask45 = GLC2000.eq(2).bitwiseAnd(zenithfForAB.eq(45));
+    var Elmask50 = GLC2000.eq(2).bitwiseAnd(zenithfForAB.eq(50));
+    var Elmask55 = GLC2000.eq(2).bitwiseAnd(zenithfForAB.eq(55));
+    var Elmask60 = GLC2000.eq(2).bitwiseAnd(zenithfForAB.eq(60));
+    // generate mask based on zenith and shape of canopy (cylinder or ellipsoid)
+    
+    // set coefficients
+    var AfCoeImg = zenithfForAB
+    .where(Cymask10,-0.61).where(Elmask10,-1.02)
+    .where(Cymask15,-0.62).where(Elmask15,-1.04)
+    .where(Cymask20,-0.58).where(Elmask20,-1.08)
+    .where(Cymask25,-0.54).where(Elmask25,-1.12)
+    .where(Cymask30,-0.51).where(Elmask30,-1.15)
+    .where(Cymask35,-0.49).where(Elmask35,-1.18)
+    .where(Cymask40,-0.48).where(Elmask40,-1.20)
+    .where(Cymask45,-0.47).where(Elmask45,-1.23)
+    .where(Cymask50,-0.46).where(Elmask50,-1.27)
+    .where(Cymask55,-0.47).where(Elmask55,-1.32)
+    .where(Cymask60,-0.48).where(Elmask60,-1.4).where(GLC2000.eq(0),0);
+    
+    var BfCoeImg = zenithfForAB
+    .where(Cymask10,0.76).where(Elmask10,1.02)
+    .where(Cymask15,0.77).where(Elmask15,1.03)
+    .where(Cymask20,0.78).where(Elmask20,1.08)
+    .where(Cymask25,0.78).where(Elmask25,1.13)
+    .where(Cymask30,0.78).where(Elmask30,1.18)
+    .where(Cymask35,0.78).where(Elmask35,1.23)
+    .where(Cymask40,0.79).where(Elmask40,1.28)
+    .where(Cymask45,0.80).where(Elmask45,1.34)
+    .where(Cymask50,0.81).where(Elmask50,1.4)
+    .where(Cymask55,0.83).where(Elmask55,1.47)
+    .where(Cymask60,0.85).where(Elmask60,1.57).where(GLC2000.eq(0),0);
+    // set coefficients
+    // zenith=60
+    var ridusZenith60 = ee.Image(60).divide(57.3);
+    var A = ee.Image(0).where(GLC2000.eq(1),-0.48).where(GLC2000.eq(2),-1.4)
+    var B = ee.Image(0).where(GLC2000.eq(1),0.85).where(GLC2000.eq(2),1.57)
+    var hotspotImg60 = isoImage.add(volImage.multiply(0.78539)).add(geoImage.multiply(1.9999));
+    var darkspotImg60 = isoImage.add(volImage.multiply(0.34242)).add(geoImage.multiply(-2.9999));
+    var corrHotspot60 = hotspotImg60.add(pe.pow(ridusZenith60.multiply(1.4142).subtract(ndvi)).multiply(0.031).add(0.002));
+    var NDHD60 = corrHotspot60.subtract(darkspotImg60).divide(corrHotspot60.add(darkspotImg60));
+    var ClumpingIndex60 = A.multiply(NDHD60).add(B).rename('CI');
+    //zenith=60
+    
+    
+    //
+    var ridusZenith = newZenith.divide(57.3);
+    var hotspotImg = isoImage.add(volImage.multiply(vol_hotspotImg)).add(geoImage.multiply(geo_hotspotImg));
+    var darkspotImg = isoImage.add(volImage.multiply(vol_darkspotImg)).add(geoImage.multiply(geo_darkspotImg));
+    var corrHotspot = hotspotImg.add(pe.pow(ridusZenith.multiply(1.4142).subtract(ndvi)).multiply(0.031).add(0.002));
+    var NDHD = corrHotspot.subtract(darkspotImg).divide(corrHotspot.add(darkspotImg));
+    var ClumpingIndex = AfCoeImg.multiply(NDHD).add(BfCoeImg).rename('CI');
+    ClumpingIndex=ClumpingIndex
+    .updateMask(GLC2000.gt(0))
+    .updateMask(fcoverMask.gt(0))
+    .updateMask(ClumpingIndex.lt(1.001)).updateMask(ClumpingIndex.gt(0.3));
+    //
+    
+    // filter by CI>0.5 GLC=13,14
+    var CIFilterMask = maskGLC.eq(1).bitwiseOr(darkspotImg60.lt(0)).bitwiseOr(ClumpingIndex60.gt(0.5).bitwiseAnd(zenithfForAB.lt(60)).bitwiseAnd(fcoverMask.gt(1)));
+    var CIFinal = ClumpingIndex60.where(CIFilterMask,ClumpingIndex)
+    .updateMask(GLC2000.gt(0))
+    .updateMask(fcoverMask.gt(0)).updateMask(ClumpingIndex.lt(1.001)).updateMask(ClumpingIndex.gt(0.3));
+   
+    var timestamp = ee.Date(retrivalImage.get('system:time_start'));
+  
+    return ee.Image([CIFinal,mcd43A2Quality,snowBand]).set("system:time_start", timestamp);
+    
+}
+
+// var retrieveImgs = filtrateModiesImage('2020-05-02','2020-05-12');
+// var dailyCIColls = RetrieveCI(retrieveImgs.first())
+//##############################SG filter
+function SGFilterForCi(CICollections){
+  
+  var qualityBands = ee.ImageCollection(CICollections).select('BRDF_Albedo_Band_Quality_Band1').toList(CICollections.size())
+  var startDate = ee.Date(ee.Image(CICollections.first()).get('system:time_start'));
+  var filterImgCollection = CICollections.map(function(img){
+    var dstamp = ee.Date(img.get('system:time_start'))
+    var ddiff = dstamp.difference(startDate,'hour')
+    img = img.select(['CI']).set('date',dstamp).unmask()
+    return img.addBands(ee.Image(1).toFloat().rename('constant')).
+      addBands(ee.Image(ddiff).toFloat().rename('t')).
+      addBands(ee.Image(ddiff).pow(ee.Image(2)).toFloat().rename('t2')).
+      addBands(ee.Image(ddiff).pow(ee.Image(3)).toFloat().rename('t3'))
+  })
+  // Step 2: Set up savitzky-Golay smoothing
+  var window_size = 7  //9
+  var half_window = (window_size-1)/2
+  
+  //define the axes of variation in the collection array.
+  var imageAxis = 0;
+  var bandAxis = 1;
+  //set polynomial order
+  // 
+  var order = 3
+  var coeffFlattener = [['constant','x','x2','x3']]
+  var indepSelectors = ['constant','t','t2','t3']
+  
+  // var order = 2
+  // var coeffFlattener = [['constant','x','x2']]
+  // var indepSelectors = ['constant','t','t2']
+  var array = filterImgCollection.toArray();
+  
+  // solve
+  function getLocalFit(i){
+    var subarray = array.arraySlice(imageAxis,ee.Number(i).int(),ee.Number(i).add(window_size).int())
+    var predictors = subarray.arraySlice(bandAxis,1,1+order+1)
+    var response = subarray.arraySlice(bandAxis,0,1);//CI
+    var coeff = ee.Image(predictors).matrixSolve(response)
+    
+    coeff = coeff.arrayProject([0]).arrayFlatten(coeffFlattener)
+    return coeff
+  }
+
+  //For the remainder, use filterImgCollection as a list of images
+  filterImgCollection = filterImgCollection.toList(filterImgCollection.size());
+  var runLength = ee.List.sequence(0,filterImgCollection.size().subtract(window_size));
+  
+  //run the SG solver over the series, and return the smoothed image version
+  var sg_series = runLength.map(function(i){
+    var ref = ee.Image(filterImgCollection.get(ee.Number(i).add(half_window)));
+    var qualityBand = ee.Image(qualityBands.get(ee.Number(i)))
+    var timestamp = ee.Date(qualityBand.get('system:time_start'));
+    var smoothedImg =  getLocalFit(i).multiply(ref.select(indepSelectors)).reduce(ee.Reducer.sum()).copyProperties(ref,['date','system:time_start']);
+    
+    var SGImg = ee.Image(smoothedImg)
+    var SGCI = SGImg.updateMask(GLC2000.gt(0)).updateMask(SGImg.lt(1.001)).updateMask(SGImg.gt(0.3));
+    //.set("system:time_start", timestamp);
+    return ee.Image([SGCI,qualityBand]).rename(['CI','BRDF_Albedo_Band_Quality_Band1']);
+    // return getLocalFit(i).multiply(ref.select(indepSelectors)).reduce(ee.Reducer.sum()).copyProperties(ref,['date','system:time_start'])
+  })
+  
+  // var sgColl = ee.ImageCollection(sg_series)
+  // Map.addLayer(sgColl.first(),{min:0,max:1,gamma:1.0},'sg')
+  return sg_series
+}
+
+// var retrieveImgs = filtrateModiesImage('2019-06-01','2019-07-01');
+// var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity);
+// var sgCIColls = ee.ImageCollection.fromImages(SGFilterForCi(dailyCIColls))
+// var sgCI = sgCIColls.select('CI')
+// print(sgCIColls)
+// Map.addLayer(sgCI.first(),{min:0,max:1,gamma:1.0},'sg1')
+//##############################SG filter
+
+function h_dayQuity(image){
+    var qaband = image.select('BRDF_Albedo_Band_Quality_Band1');
+    var CI = image.select('CI');
+    var snowBand = image.select('Snow_BRDF_Albedo');
+    var snowMask = snowBand.eq(0);
+    var qabandMask = qaband.lt(4);
+    var CIs = CI.updateMask(snowMask).updateMask(qabandMask);
+    var qa = qaband.where(qaband.lte(1),0).where(qaband.lt(4).and(qaband.gt(1)),2).unmask(255);
+    
+    return ee.Image(CIs).addBands(qa);
+}
+
+function maskHighest(img){
+    var qa = img.select('BRDF_Albedo_Band_Quality_Band1');
+    var CI = img.select('CI');
+    var mask = qa.lte(1);
+    return ee.Image(CI).updateMask(mask);
+}
+
+function maskMagitude(himg){
+    var qa = himg.select('BRDF_Albedo_Band_Quality_Band1');
+    var CI = himg.select('CI');
+    var hmask = qa.gt(1).bitwiseAnd(qa.lt(4));
+    return ee.Image(CI).updateMask(hmask);
+}
+//composite images montly observation by mean values
+
+function MonthlyComposite(start,imgCollection){
+  
+    var highCI = imgCollection.map(maskHighest).mean();
+    var magituteCI = imgCollection.map(maskMagitude).mean();
+    var finalCI = highCI.unmask(magituteCI);
+    
+    // Map.addLayer(finalCI,visParam,'finCI');
+    
+    var highCIqa = highCI.gt(0);
+    var magituteqa = magituteCI.gt(0);
+    var magituqa = finalCI.where(magituteqa,2)
+    var ftqaband = magituqa.where(highCIqa,0).unmask(255);
+    
+    
+    // var magituteMask =  highCI.mask().eq(0).bitwiseAnd(magituteCI.mask().eq(1));
+    // var qaband = highCI.mask().where(magituteMask,2);
+    // var fqaband = qaband.updateMask(qaband.gt(0)).where(qaband.eq(1),0);
+    
+    var timestamp = ee.Date(start.format("YYYY-MM-dd"));
+    
+    var finalImg = ee.Image([finalCI,ftqaband]).rename(['CI','QA']).set("system:time_start", timestamp);
+    
+    // return ee.ImageCollection.fromImages(monthlyImgs);
+    return finalImg
+}
+
+function yearlyComposite(start,Collection){
+  
+    var highCI = Collection.map(maskHighest).mean();
+   
+    var magituteCI = Collection.map(maskMagitude).mean();
+    
+    var finalCI = highCI.unmask(magituteCI);
+  // Map.addLayer(finalCI,visParam,'finCI');
+    var highCIqa = highCI.gt(0);
+    var magituteqa = magituteCI.gt(0);
+    var magituqa = finalCI.where(magituteqa,2)
+    var ftqaband = magituqa.where(highCIqa,0).unmask(255);
+    // var commonMask =  highCI.mask().eq(0).bitwiseAnd(magituteCI.mask().eq(1));
+    // var qaband = highCI.mask().where(commonMask,2);
+    // var fqaband = qaband.updateMask(qaband.gt(0)).where(qaband.eq(1),0);
+  
+    var timestamp = ee.Date(start.format("YYYY"));
+    var finalImg = ee.Image([finalCI,ftqaband]).rename(['CI','QA']).set("system:time_start", timestamp);
+
+    return finalImg;
+}
+
+// export Image
+var globalNet = ee.FeatureCollection('users/lrvings/GLOBAL60prj');
+var featureList = globalNet.toList(9);
+
+function export_globalImg(CIImage,ImgName){
+
+  
+  var outputImg = ee.Image([CIImage.select(0).multiply(1000).toInt16(),CIImage.select(1).toInt16()]);
+  for (var i=0; i<9; i++){
+    var bound = ee.Feature(featureList.get(i)).geometry();
+    var name = cat(ImgName,i);
+    Export.image.toDrive({
+      image:outputImg,
+      description:name,
+      region:bound,
+      scale:500,
+      folder:'CIFolder',
+      maxPixels:1E13});
+  }
+  function cat(ImgName,astr){
+    return ImgName+'-'+astr;
+  }
+}
+
+
+function export_regionalImg(regionImage,ImgName,selectRegion){
+
+  var outputImg = ee.Image([regionImage.select(0).multiply(1000).toInt16(),regionImage.select(1).toInt16()]);
+  
+  Export.image.toDrive({
+    image:outputImg,
+    description:ImgName,
+    region:selectRegion,
+    scale:500,
+    folder:'CIFolder',
+    maxPixels:1E13});
+}
+
+
+
+function regional_Interface(startDate,endDate,ImgName,type,selectRegion){
+  // resultPanel.remove(urlLabel)
+  
+  // var outputImg = ee.Image([regionImage.select(0).multiply(1000).toInt16(),regionImage.select(1).toInt16()]);
+  view.onClick(function(){
+     var image = generateImage(startDate,endDate,type);
+     
+    
+     var clipImage = image.clip(selectRegion);
+     Map.addLayer(clipImage.select('CI'),visParam,ImgName+'-regional');
+     
+    // Map.drawingTools().clear();
+     Map.centerObject(selectRegion);
+     view.setDisabled(true);
+  })
+  var listen = download.onClick(function(){
+     var image = generateImage(startDate,endDate,type);
+     var clipImage = image.clip(selectRegion);
+    // Map.addLayer(clipImage.select(0),visParam,ImgName+'-regional');
+     export_regionalImg(clipImage,ImgName+'-regional',selectRegion);
+     Map.centerObject(selectRegion);
+    // var downloadParameters={
+    //   name: 'CI-ThumpNail',
+    //   scale:500,
+    //   crs:'EPSG:4326',
+    //   region:selectRegion.toGeoJSONString()
+    // };
+    // var url = outputImg.getDownloadURL(downloadParameters);
+    // urlLabel.setUrl(url);
+    // urlLabel.style().set({shown: true});
+    // resultPanel.add(urlLabel);
+    download.setDisabled(true);
+  });
+}
+////////////////////////////////////////////////////CI production ends here
