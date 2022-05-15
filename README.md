@@ -13,8 +13,7 @@ I will upload monthly fCover within 2010-2020, so the final products will be dow
 
 After the corresponding data are already; all daily, monthly, yearly products can be downloaded from this code;
 
-up to 2022-02-17, the fCover only during 2019 have been uploaded, so the CI products in 2019 are available for download; The fFcoer images are continuously uploading...,during these days, you can still download products during not confind 2019 because the program took the available fCover to produce. 
-
+up to 2022-05-15, the fCover have been uploaded to 2020-05, so the CI products from 2000-01 to 2020-05 are available for download; The fFcoer images  will be continuously uploading,but you can still download products during not confind this range because the program is designed to automaticallly take the approximate fCover to produce. 
 
 
 Notes: this code is designed to provide an interactive download tool; after you run this code in GEE, an UI page is appeared and you need type two dates (the start date and end date of products you want), then you can click to produce what products do you need and select to export a global or regional image to your Google derive;
@@ -24,9 +23,9 @@ Some instructions as following:
  3) The global product will be divided to 9 single images to export because the same set in GEE, so do not be astonished when you see 9 pieces of Image in your google derive;
  4) All products include 2 bands (CI band and Quality band) and are named by its date, more information about products can see the reference in the end of this page;
  5) I give a name of exported folder ("CIFolder"), you can modify as you like;
-The fast open link "https://code.earthengine.google.com/02b1ac3eb93bf94dda3adb266a1894a3"; The GEE app "https://lrvings.users.earthengine.app/view/civiewer" can be used to view products;
+ 6) The fast open link "https://code.earthengine.google.com/?scriptPath=users%2Flrvings%2FGMap%3AClumpingIndex%2FUIClumpIndex";
 
-please cite the following references if you got help here to your work; and please share my work to your friends if they need;
+please cite the following references if you got help here to your work;
 
 [1] Wei, S. and H. Fang (2016). "Estimation of canopy clumping index from MISR and MODIS sensors using the normalized difference hotspot and darkspot (NDHD) method: The influence of BRDF models and solar zenith angle." Remote Sensing of Environment 187: 476-491.
 
