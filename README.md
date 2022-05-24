@@ -15,12 +15,8 @@ the initialized interface
 1) After two dates input, the desired products options are appeared.
 <img src="https://user-images.githubusercontent.com/41323376/169941305-725115e4-8fdb-4357-90de-e0e4d81d0053.jpg" width="800px">
 2) select corresponding temporal scale to produce product
-3) 
-![daily](https://user-images.githubusercontent.com/41323376/169962266-43b7108d-a75f-43aa-be6d-e5f9e37170bb.jpg)
-![monthly](https://user-images.githubusercontent.com/41323376/169962284-c171a3d5-4ece-4be8-9b97-28694fb3c5a7.jpg)
-![yearly](https://user-images.githubusercontent.com/41323376/169962296-a553dfbf-ae5c-45ff-9785-d179baf4460c.jpg)
+<img src="https://Clumping-Index-Products/softwareShots/daily.jpg)
 
-<img src="https://user-images.githubusercontent.com/41323376/169961980-34cd91d2-a5fc-43b6-8a87-063f53d4cc8c.jpg" width="800px" height=400> 
 3) You can select spatial scale to export or view product, then the new final buttons will appear
 <img src="" width="800px">
 4) The corresponding image named by its date will be added to the map after click export or view
