@@ -1,9 +1,32 @@
-# Clumping-Index-Products
-CI (clumping index) indicates the spatial distribution pattern of foliage. CI=1: random distribution; CI>1: regular distribution; CI<1: clumping distribution;
-All methods and technologies are referenced from the puiblications on the end of this page;
+# CAS-Clumping-Index-Products
+The Canopy CI (clumping index) indicates the spatial distribution pattern of foliage. CI=1: random distribution; CI>1: regular distribution; CI<1: clumping distribution. This program codeed by JavaScript in Goole Earth Engine （GEE） to produce global CI products based on the remote sensing dataset, it is a visualization software that runs directly in the GEE to provide CI products downloading with a self-defined scale.
 
-Google Earth Engine JS code produce Clumping Index to download;
-The program are designed to provide all products (daily, montly, yearly) so long as the input data is already; 
+Currently, users can directly get daily, montly, yearly CI image from March 2000 to May 2020 and can export in a global or regional scale.
+All methods and technologies are referenced from the perivous puiblications on the end of this page. The main constitutes of the codes is:
+1) filter image datasets by designated date range to into corresponding imagecollections.
+2) generate multi-band image containing the required data and stack it in a image collection for CI retrieval.
+3) Retrieve daily CI based on band calculations and exclude low quality pixels.
+4) The Savitzky-Golay smoothing filter (SG-filter) was conducted for daily CI collection then to composite monthly or yearly CI image by quality indicator and provide final CI to download.
+
+
+The description of software usage:
+the initialized interface
+<img src="https://user-images.githubusercontent.com/41323376/169938918-a286d66f-b651-4eca-bc07-a1583834fd62.jpg" width="800px">
+1) After two dates input, the desired products options are appeared.
+<img src="https://user-images.githubusercontent.com/41323376/169941305-725115e4-8fdb-4357-90de-e0e4d81d0053.jpg" width="800px">
+2) select corresponding temporal scale to produce product
+3) 
+![daily](https://user-images.githubusercontent.com/41323376/169962266-43b7108d-a75f-43aa-be6d-e5f9e37170bb.jpg)
+![monthly](https://user-images.githubusercontent.com/41323376/169962284-c171a3d5-4ece-4be8-9b97-28694fb3c5a7.jpg)
+![yearly](https://user-images.githubusercontent.com/41323376/169962296-a553dfbf-ae5c-45ff-9785-d179baf4460c.jpg)
+
+<img src="https://user-images.githubusercontent.com/41323376/169961980-34cd91d2-a5fc-43b6-8a87-063f53d4cc8c.jpg" width="800px" height=400> 
+3) You can select spatial scale to export or view product, then the new final buttons will appear
+<img src="" width="800px">
+4) The corresponding image named by its date will be added to the map after click export or view
+
+5) the dateslider in the top of the map provides a daily CI quick view
+
 
 Expecting fCover and specific Global land cover are required to upload manually, other all input data are provided by GEE Data Catalog.
 The author assigned global land cover was download from http://bioval.jrc.ec.europa.eu/products/glc2000/glc2000.php; I have uploaded it.
@@ -25,7 +48,7 @@ Some instructions as following:
  5) I give a name of exported folder ("CIFolder"), you can modify as you like;
  6) The fast open link "https://code.earthengine.google.com/?scriptPath=users%2Flrvings%2FGMap%3AClumpingIndex%2FUIClumpIndex";
 
-please cite the following references if you got help here to your work;
+
 
 [1] Wei, S. and H. Fang (2016). "Estimation of canopy clumping index from MISR and MODIS sensors using the normalized difference hotspot and darkspot (NDHD) method: The influence of BRDF models and solar zenith angle." Remote Sensing of Environment 187: 476-491.
 
