@@ -1,5 +1,6 @@
 //********* manually uploaded data
 // each fcover imagecollection has at least 100 pieces of image, merge them for convenience
+Map.setCenter(120,20,1)
 var fcover12to2020 = ee.ImageCollection("users/lrvings/FCOVER");
 var fcover03to12 = ee.ImageCollection("users/lrvings/FCOVER2");
 var fcover00to03 = ee.ImageCollection("users/lrvings/FCOVER3");
@@ -7,7 +8,6 @@ var fcover = fcover12to2020.merge(fcover03to12).merge(fcover00to03).sort('system
 
 //# landcover that is used to define empirical parameters and be a mask of result
 var LandCover_2020 = ee.Image('users/lrvings/GLC2000');
-
 
 var oriClass = ee.List([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]);
 var detClass = ee.List([2,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0]);
@@ -38,11 +38,11 @@ var visParam = {
 var startLabel = ui.Label({value:'Start date:',style:{fontFamily:'serif',color:'green',margin:'0px 0px'}})
 var endLabel = ui.Label({value:'End date:',style:{fontFamily:'serif',color:'green',margin:'0px 0px'}})
 var startTextbox = ui.Textbox({
-  placeholder:'2019-01-01',
+  placeholder:'2000-03-01',
   style:{position:'top-left'}
 });
 var endTextbox = ui.Textbox({
-  placeholder:'2020-01-01',
+  placeholder:'2020-05-01',
   style:{position:'top-left'}
 });
 var panel = ui.Panel();
@@ -186,7 +186,7 @@ function constructDateList(startDate,endDate,type){
 
 
 var mostDate = new Date('2021-01-01');
-var leastDate = new Date('2000-01-01');
+var leastDate = new Date('2000-03-01');
 
 
 //generate Image at selected date
@@ -233,7 +233,7 @@ var inputCheck = function(start,end){
     return false
   }else{
     if((dateEnd-dateStart)<0 || (dateEnd-mostDate)>0 || (leastDate-dateStart)>0){
-      alert('the start date should less than the end date and date are allowed only between 2000-01-01 to 2020-05-01')
+      alert('the start date should less than the end date and date are allowed only between 2000-02-01 to 2020-05-01')
       return false
     }
     var datesStr = new Array(dateStart,dateEnd)
@@ -350,7 +350,7 @@ var showImage = function(range){
 };
 
 var dateSlider = ui.DateSlider({
-    start:'2002-01-01',
+    start:'2000-02-01',
     end: '2022-01-01',
     value:'2020-01-01',
     period: 1,
