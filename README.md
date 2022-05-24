@@ -1,10 +1,10 @@
 # CAS-Clumping-Index-Products
-The Canopy CI (clumping index) indicates the spatial distribution pattern of foliage. CI=1: random distribution; CI>1: regular distribution; CI<1: clumping distribution. This software programmed by JavaScript in Goole Earth Engine （GEE） to produce global CI products based on the remote sensing dataset. It is a visualization software that runs directly in the GEE to provide downloading within a self-defined scale.
+The Canopy CI (clumping index) indicates the spatial distribution pattern of foliage. CI=1: random distribution; CI>1: regular distribution; CI<1: clumping distribution. This software programmed by JavaScript in Goole Earth Engine （GEE） is to produce global CI products based on the remote sensing dataset. It is a visualization software which runs directly in the GEE to provide CI downloading at a user-defined scale.
 
-Currently, users can directly get daily, montly, yearly CI image from March 2000 to May 2020 and can export in a global or regional scale.
-All methods and technologies are referenced from the perivous puiblications on the end of this page. The main constitutes of the codes is:
 
-1) filter image datasets by designated date range to into corresponding imagecollections.
+Now, CI products in tif format from March 1 2000 to May 1 2020, at regional or global scale, with a temporal scale ranging from daily, montly, even yearly cant be directly acquired. Publications  to which methods and technologies were referred are listed at the end of this page. The program is composed of the following steps:
+
+1) filter image datasets by designated date range to corresponding image collections.
 2) generate multi-band image containing the required data and stack it in a image collection for CI retrieval.
 3) Retrieve daily CI based on band calculations and exclude low quality pixels.
 4) The Savitzky-Golay smoothing filter (SG-filter) was conducted for daily CI collection then to composite monthly or yearly CI image by quality indicator and provide final CI to download.
@@ -14,11 +14,11 @@ the initialized interface, the dateslider in the top of the map provides a daily
 
 <img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/startedInterface.jpg" width='500px'>
 
-1)After two dates input, the desired products options are appeared.
+1)After two dates input and click one of temporal scales, the desired products options are appeared.
 
 <img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/inputdate.jpg" width='500px'>
 
-2)select corresponding temporal scale to produce product.
+2)select one of date point to get product.
 
 <p float="left">
 <img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/daily.jpg" height='300px' width='200px'/><img         src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/monthly.jpg" height='300px' width='200px'/><img         src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/yearly.jpg" height='300px' width='200px'/>
@@ -28,7 +28,7 @@ the initialized interface, the dateslider in the top of the map provides a daily
 
 <img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/dailyImg.jpg" width="500px">
 
-4)The corresponding image named by its date will be added to the map after click export or view.
+4)The corresponding image named by its date will be added to the map after click view.
 
 <img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/loadLayer.jpg" width="500px">
 
@@ -38,21 +38,20 @@ the initialized interface, the dateslider in the top of the map provides a daily
 <img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/export.jpg" width="500px"><img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/exportSettings.jpg" width="500px">
 </p>
  
-6)After select "draw a rectangle to export/view", you can draw one or several rectangle and select one of them to view or download. The small regional image can be downloaded to one image file in your Goole Drive. 
+6)After select "draw a rectangle to export/view", you can draw one or several rectangles and select one of them to view or download. The small regional image can be downloaded to one image file in your Goole Drive. 
 
 <img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/regionalExport.jpg" width="500px">
 
 Notes:
-Expecting fCover and Global land cover are required to upload manually, other all input data are provided by GEE Data Catalog.
-The author have uploaded the global land cover product and fraction of vegetation coverage(FCOVER). The land cover image is a single year product, and the FCOVER is the monthly product, we currently have been uploading the FCOVER to May 2020. The following FCOVER will be contiguously uploaded once it latest one available. The land cover product is from http://bioval.jrc.ec.europa.eu/products/glc2000/glc2000.php and the FCOVER is from https://land.copernicus.vgt.vito.be/PDF/portal/Application.html#Home.
+Expecting fraction of vegetation coverage(FCOVER) and Global land cover are required to upload manually, other all input data are provided by GEE Data Catalog. The land cover image is a single year product, and the FCOVER is the monthly product, we currently have been uploading the FCOVER to May 2020. The following FCOVER will be contiguously uploaded once it latest one is available. The land cover product is from http://bioval.jrc.ec.europa.eu/products/glc2000/glc2000.php and the FCOVER is from https://land.copernicus.vgt.vito.be/PDF/portal/Application.html#Home.
 
-The daily montly and yearly CI products from 2000-03 to 2020-05 are available for download. But you can still download products not confind this date range because the program is designed to automaticallly take the approximated FCover to produce. 
+The products from 2000-03 to 2020-05 are available for download, but you can still download products not confind this date range because the program is designed to automaticallly take the approximated FCover to produce. 
 
 Some instructions as following:
  1) please type date with a form likes "2020-01-01".
  2) The CI band in export has been scaled 1000, please be a little patient for waiting result because calculating CI is not a easy work.
- 3) You see 9 pieces of Image in your google derive when you select to export global image.
- 4) All products includeing 2 bands (CI band and Quality band) named by its date, more information about products can see the reference in the end of this page;
+ 3) You will see 9 pieces of Image in your google derive after you exported global image.
+ 4) All products including 2 bands (CI band and Quality band) named by its date, more information about products can see the reference in the end of this page;
  5) I give a name of exported folder ("CIFolder"), you can modify as you like.
  6) The fast open link of this program "https://code.earthengine.google.com/?scriptPath=users%2Flrvings%2FGMap%3AClumpingIndex%2FCAS-CI".
 
