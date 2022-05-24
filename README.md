@@ -8,22 +8,37 @@ All methods and technologies are referenced from the perivous puiblications on t
 3) Retrieve daily CI based on band calculations and exclude low quality pixels.
 4) The Savitzky-Golay smoothing filter (SG-filter) was conducted for daily CI collection then to composite monthly or yearly CI image by quality indicator and provide final CI to download.
 
-
 The description of software usage:
-the initialized interface
-<img src="https://user-images.githubusercontent.com/41323376/169938918-a286d66f-b651-4eca-bc07-a1583834fd62.jpg" width="800px">
-1) After two dates input, the desired products options are appeared.
-<img src="https://user-images.githubusercontent.com/41323376/169941305-725115e4-8fdb-4357-90de-e0e4d81d0053.jpg" width="800px">
-2) select corresponding temporal scale to produce product
+the initialized interface, the dateslider in the top of the map provides a daily CI quick view
+
+<img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/startedInterface.jpg" width='500px'>
+
+1)After two dates input, the desired products options are appeared.
+
+<img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/inputdate.jpg" width='500px'>
+
+2)select corresponding temporal scale to produce product.
+
 <p float="left">
-<img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/daily.jpg" height='500px' width='300px'/><img         src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/monthly.jpg" height='500px' width='300px'/><img         src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/yearly.jpg" height='500px' width='300px'/>
+<img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/daily.jpg" height='300px' width='200px'/><img         src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/monthly.jpg" height='300px' width='200px'/><img         src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/yearly.jpg" height='300px' width='200px'/>
 </p>
-3) You can select spatial scale to export or view product, then the new final buttons will appear
-<img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/dailyImg.jpg" width="800px">
 
-4) The corresponding image named by its date will be added to the map after click export or view
+3)You can select spatial scale to export or view product, then the new final buttons will appear.
 
-5) the dateslider in the top of the map provides a daily CI quick view
+<img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/dailyImg.jpg" width="500px">
+
+4)The corresponding image named by its date will be added to the map after click export or view.
+
+<img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/loadLayer.jpg" width="500px">
+
+5)Because of constraints by GEE, exporting the global extent (60°S-90°N,180°E-180°W) product will be automatically clipped into 9 equal-sized pieces of image. You can set the file name and saved folder
+
+<p float="left">
+<img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/export.jpg" width="500px"><img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/exportSettings.jpg" width="500px">
+</p>
+ 
+6)After select "draw a rectangle to export/view", you can draw one or several rectangle and select one of them to view or download. The small regional image can be downloaded to one image file in your Goole Drive. 
+
 
 
 Expecting fCover and specific Global land cover are required to upload manually, other all input data are provided by GEE Data Catalog.
