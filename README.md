@@ -16,11 +16,11 @@ the initialized interface
 <img src="https://user-images.githubusercontent.com/41323376/169941305-725115e4-8fdb-4357-90de-e0e4d81d0053.jpg" width="800px">
 2) select corresponding temporal scale to produce product
 <p float="left">
-<img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/daily.jpg" height='500px' width='300px'/><img         src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/daily.jpg" height='500px' width='300px'/>
+<img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/daily.jpg" height='500px' width='300px'/><img         src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/monthly.jpg" height='500px' width='300px'/><img         src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/yearly.jpg" height='500px' width='300px'/>
 </p>
- 
 3) You can select spatial scale to export or view product, then the new final buttons will appear
-<img src="" width="800px">
+<img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/dailyImg.jpg" width="800px">
+
 4) The corresponding image named by its date will be added to the map after click export or view
 
 5) the dateslider in the top of the map provides a daily CI quick view
