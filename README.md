@@ -44,7 +44,7 @@ the initialized interface, the dateslider in the top of the map provides a daily
 <img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/regionalExport.jpg" width="500px">
 
 Notes:
-Expecting fraction of vegetation coverage(FCOVER) and Global land cover are required to upload manually, other all input data are provided by GEE Data Catalog. The land cover image is a single year product, and the FCOVER is the monthly product, we currently have been uploading the FCOVER to May 2020. The following FCOVER will be contiguously uploaded once it latest one is available. The land cover product is from http://bioval.jrc.ec.europa.eu/products/glc2000/glc2000.php and the FCOVER is from https://land.copernicus.vgt.vito.be/PDF/portal/Application.html#Home.
+All input datasets are provided by GEE Data Catalog expecting fraction of vegetation coverage(FCOVER) and Global land cover that. The land cover image is a single year product, and the FCOVER is the monthly product, we currently have been uploading the FCOVER to May 2020. The following FCOVER will be contiguously uploaded once it latest one is available. The land cover product is from http://bioval.jrc.ec.europa.eu/products/glc2000/glc2000.php and the FCOVER is from https://land.copernicus.vgt.vito.be/PDF/portal/Application.html#Home.
 
 The products from 2000-03 to 2020-05 are available for download, but you can still download products not confind this date range because the program is designed to automaticallly take the approximated FCover to produce. 
 
