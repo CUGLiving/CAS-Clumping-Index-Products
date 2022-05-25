@@ -10,6 +10,7 @@ Now, CI products are released by tif format from March 1 2000 to May 1 2020, at 
 4) The Savitzky-Golay smoothing filter (SG-filter) was conducted for daily CI collection then to composite monthly or yearly CI image by quality indicator and provide final CI to download.
 
 The description of software usage:
+
 the initialized interface, the dateslider in the top of the map provides a daily CI quick view
 
 <img src="https://github.com/CUGLiving/Clumping-Index-Products/blob/main/softwareShots/startedInterface.jpg" width='500px'>
