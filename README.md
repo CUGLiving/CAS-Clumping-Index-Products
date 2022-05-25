@@ -1,5 +1,5 @@
 # CAS-Clumping-Index-Products
-The Canopy clumping index (CI) indicates the spatial distribution pattern of foliage. The CI<1 means foliage is clumping distribution. When CI=1, the foliage is random distribution, and when CI>1 the foliage is regular distribution(CI>1). This software programmed by JavaScript in Goole Earth Engine （GEE） is to produce global CI products based on the remote sensing dataset. It is a visualization software which runs directly in the GEE to provide CI downloading at a user-defined scale.
+The Canopy clumping index (CI) indicates the spatial distribution pattern of foliage. The CI<1 means foliage is clumping distribution. When CI=1, the foliage is random distribution, and when CI>1 the foliage is regular distribution. This software programmed by JavaScript in Goole Earth Engine （GEE） is to produce global CI products based on the remote sensing dataset. It is a visualization software which runs directly in the GEE to provide CI downloading at a user-defined scale.
 
 
 Now, CI products are released by tif format from March 1 2000 to May 1 2020, at regional or global scale, with a temporal scale ranging from daily, montly, and yearly. Publications to which methods and technologies were referred are listed at the end of this page. The program is mainly composed of the following steps:
