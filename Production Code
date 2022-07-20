@@ -1,9 +1,25 @@
 //********* manually uploaded data
 // each fcover imagecollection has at least 100 pieces of image, merge them for convenience
 Map.setCenter(120,20,1)
+
 var fcover12to2020 = ee.ImageCollection("users/lrvings/FCOVER");
 var fcover03to12 = ee.ImageCollection("users/lrvings/FCOVER2");
 var fcover00to03 = ee.ImageCollection("users/lrvings/FCOVER3");
+
+//scale 100, start From 2002-07-04
+var MCDLAICollections = ee.ImageCollection("MODIS/061/MCD15A3H").select('Lai');
+
+var MODLAICollections = ee.ImageCollection("MODIS/061/MOD15A2H").select('Lai_500m');
+
+
+var LAICollection_2000_02 = MODLAICollections.filterDate('2000-02-01','2002-07-04').map(function(image){
+  
+  return ee.Image(image).rename('Lai')
+});
+
+var LAICollection = LAICollection_2000_02.merge(MCDLAICollections);
+
+//#0-> none;1-> fcover<0.25; 2-> fcover>=0.25
 var fcover = fcover12to2020.merge(fcover03to12).merge(fcover00to03).sort('system:time_start');
 
 //# landcover that is used to define empirical parameters and be a mask of result
@@ -17,6 +33,7 @@ var GLC2000 = LandCover_2020.reproject('EPSG:4326',null,500).remap(oriClass,detC
 //reclassified LandCover_2020 to filter CI product
 var maskGLC = LandCover_2020.reproject('EPSG:4326',null,500).remap(oriClass,maskClass,0);
 
+var ORIGLC2000 = LandCover_2020.reproject('EPSG:4326',null,500);
 // covert to list for convenient selection
 var fcoverList = fcover.toList(fcover.size())
 var latestDate = ee.Image(fcoverList.get(-1)).get('system:time_start')
@@ -194,20 +211,25 @@ var leastDate = new Date('2000-03-01');
 function generateImage(sd,ed,type){
 
   var retrieveImgs = filtrateModiesImage(sd,ed);
-  var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity);
   
+  var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity).map(postProcess);
+  
+ 
   // print(sgCIColls)
   switch(type){
     case 'daily':
-      var sgCIdaily = ee.ImageCollection.fromImages(SGFilterForCi(dailyCIColls));
-      var imageList = sgCIdaily.toList(sgCIdaily.size());
-      var dailyImage = ee.Image(imageList.get(0));
+      // var sgCIdaily = ee.ImageCollection.fromImages(SGFilterForCi(dailyCIColls));
+      
+      // var imageList = sgCIdaily.toList(sgCIdaily.size());
+      // var dailyImage = ee.Image(imageList.get(0));
       //Map.addLayer(visImg,visParam,ImgName+'-global');
+      var dailyImage = dailyCIColls.first();
       return dailyImage;
       
     case 'monthly':
-      var sgCIMonthly = ee.ImageCollection.fromImages(SGFilterForCi(dailyCIColls));
-      var SGMonthlyComposite  = MonthlyComposite(sd,sgCIMonthly);
+      // var sgCIMonthly = ee.ImageCollection.fromImages(SGFilterForCi(dailyCIColls));
+      // print(sgCIMonthly)
+      var SGMonthlyComposite  = MonthlyComposite(sd,dailyCIColls);
       
       return SGMonthlyComposite;
       // return MonthImage;
@@ -217,6 +239,8 @@ function generateImage(sd,ed,type){
       var yearCollection = ee.ImageCollection.fromImages(yearImgList);
       
       var sgCIYearly = ee.ImageCollection.fromImages(SGFilterForCi(yearCollection));
+      
+      //use sgCIYearly when conduct SG-Filter
       var SGYearlyComposite  = yearlyComposite(sd,sgCIYearly);
       
       return SGYearlyComposite;
@@ -233,7 +257,7 @@ var inputCheck = function(start,end){
     return false
   }else{
     if((dateEnd-dateStart)<0 || (dateEnd-mostDate)>0 || (leastDate-dateStart)>0){
-      alert('the start date should less than the end date and date are allowed only between 2000-02-01 to 2020-05-01')
+      alert('the start date should less than the end date and date are allowed only between 2000-03-01 to 2020-05-01')
       return false
     }
     var datesStr = new Array(dateStart,dateEnd)
@@ -339,7 +363,7 @@ var showImage = function(range){
   var retrieveImgs = filtrateModiesImage(startDate,endDate);
   
   
-  var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity);
+  var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity).map(postProcess);
   
   var imageList = dailyCIColls.toList(1);
   
@@ -707,6 +731,8 @@ function RetrieveCI(retrivalImage){
     var corrHotspot60 = hotspotImg60.add(pe.pow(ridusZenith60.multiply(1.4142).subtract(ndvi)).multiply(0.031).add(0.002));
     var NDHD60 = corrHotspot60.subtract(darkspotImg60).divide(corrHotspot60.add(darkspotImg60));
     var ClumpingIndex60 = A.multiply(NDHD60).add(B).rename('CI');
+    
+    
     //zenith=60
     
     
@@ -729,11 +755,15 @@ function RetrieveCI(retrivalImage){
     .updateMask(GLC2000.gt(0))
     .updateMask(fcoverMask.gt(0)).updateMask(ClumpingIndex.lt(1.001)).updateMask(ClumpingIndex.gt(0.3));
    
+    
     var timestamp = ee.Date(retrivalImage.get('system:time_start'));
   
     return ee.Image([CIFinal,mcd43A2Quality,snowBand]).set("system:time_start", timestamp);
     
 }
+
+
+
 
 // var retrieveImgs = filtrateModiesImage('2020-05-02','2020-05-12');
 // var dailyCIColls = RetrieveCI(retrieveImgs.first())
@@ -748,8 +778,8 @@ function SGFilterForCi(CICollections){
     img = img.select(['CI']).set('date',dstamp).unmask()
     return img.addBands(ee.Image(1).toFloat().rename('constant')).
       addBands(ee.Image(ddiff).toFloat().rename('t')).
-      addBands(ee.Image(ddiff).pow(ee.Image(2)).toFloat().rename('t2')).
-      addBands(ee.Image(ddiff).pow(ee.Image(3)).toFloat().rename('t3'))
+      addBands(ee.Image(ddiff).pow(ee.Image(2)).toFloat().rename('t2'))
+      // addBands(ee.Image(ddiff).pow(ee.Image(3)).toFloat().rename('t3'))
   })
   // Step 2: Set up savitzky-Golay smoothing
   var window_size = 7  //9
@@ -760,13 +790,13 @@ function SGFilterForCi(CICollections){
   var bandAxis = 1;
   //set polynomial order
   // 
-  var order = 3
-  var coeffFlattener = [['constant','x','x2','x3']]
-  var indepSelectors = ['constant','t','t2','t3']
+  // var order = 3
+  // var coeffFlattener = [['constant','x','x2','x3']]
+  // var indepSelectors = ['constant','t','t2','t3']
   
-  // var order = 2
-  // var coeffFlattener = [['constant','x','x2']]
-  // var indepSelectors = ['constant','t','t2']
+  var order = 2
+  var coeffFlattener = [['constant','x','x2']]
+  var indepSelectors = ['constant','t','t2']
   var array = filterImgCollection.toArray();
   
   // solve
@@ -810,6 +840,55 @@ function SGFilterForCi(CICollections){
 // print(sgCIColls)
 // Map.addLayer(sgCI.first(),{min:0,max:1,gamma:1.0},'sg1')
 //##############################SG filter
+
+// filter by defined criteria
+
+//temporary test
+
+
+function postProcess(image){
+  
+ 
+  var timestamp = ee.Date(image.get('system:time_start'));
+  var endtampe = timestamp.advance(8,'day')
+  // var monthDay =  timestamp.format('MM-dd')
+  // var backupDate = ee.Date(ee.String('2003-').cat(monthDay))
+  // var Flag =  timestamp.difference(ee.Date('2002-07-04'),'day').gt(0);
+  // // var backupDate = timestamp.advance(1,'year');
+  
+  // // print(selectLAI)
+  // // print(backupLAI)
+  // var date = ee.Algorithms.If(Flag,timestamp,backupDate);
+  // var tDate = ee.Date(date);
+  
+  var LAI =ee.Image(LAICollection.filterDate(timestamp,endtampe).first());
+  
+  // var LAI = MCD15Image.select('Lai');
+  
+  // print(LAI)
+   
+  var InitCI = image.select('CI');
+  var qa = image.select('BRDF_Albedo_Band_Quality_Band1');
+ 
+  //scale 100
+  
+  var postFilter1 = ORIGLC2000.eq(4).bitwiseOr(ORIGLC2000.eq(5)).bitwiseAnd(InitCI.gt(0.7).bitwiseAnd(InitCI.lt(1.001)));
+  var postFilter2 = ORIGLC2000.eq(13).bitwiseAnd(InitCI.lt(0.7));
+  
+  var postFilter3 = ORIGLC2000.eq(14).bitwiseAnd(InitCI.lt(0.7)).bitwiseAnd(LAI.lt(100));//LAI filter is need here
+  var postFilter4 = ORIGLC2000.gte(19);
+  
+  // var postFilter5 = LAI.lt(40).bitwiseAnd(InitCI.lt(0.7));
+  var postFilter5 = LAI.eq(0).bitwiseOr(LAI.gt(100));
+  
+  var finalFilter = postFilter1.bitwiseOr(postFilter2).bitwiseOr(postFilter3).bitwiseOr(postFilter4).bitwiseOr(postFilter5);
+  var CIPost = InitCI.where(finalFilter,0)
+  var outputCI = CIPost.updateMask(CIPost.lt(1.001)).updateMask(CIPost.gt(0.3));
+  
+  return ee.Image(outputCI).addBands(qa);
+  
+}
+
 
 function h_dayQuity(image){
     var qaband = image.select('BRDF_Albedo_Band_Quality_Band1');
