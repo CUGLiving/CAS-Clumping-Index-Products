@@ -2,7 +2,7 @@
 The Canopy clumping index (CI) indicates the spatial distribution pattern of foliage. The CI<1 means foliage is clumping distribution. When CI=1, the foliage is random distribution, and when CI>1 the foliage is regular distribution. This software programmed by JavaScript in Goole Earth Engine （GEE） is to produce global CI products based on the remote sensing dataset. It is a visualization software which runs directly in the GEE to provide CI downloading at a user-defined scale.
 
 
-Now, CI products are released by tif format from March 1 2000 to May 1 2020, at regional or global scale, with a temporal scale ranging from daily, montly, and yearly. Publications to which methods and technologies were referred are listed at the end of this page. The program is mainly composed of the following steps:
+Now, CI products are released by tif format from March 1, 2000 to May 1, 2020, at regional or global scale, with a temporal scale ranges from daily, montly, and yearly. Publications to which methods and technologies were referred are listed at the end of this page. The program is mainly composed of the following steps:
 
 1) filter image datasets by designated date range to corresponding image collections.
 2) generate multi-band image containing the required data and stack it in a image collection for CI retrieval.
@@ -59,6 +59,6 @@ Some instructions as following:
 
 References:
 
-[1] Wei, S. and H. Fang (2016). "Estimation of canopy clumping index from MISR and MODIS sensors using the normalized difference hotspot and darkspot (NDHD) method: The influence of BRDF models and solar zenith angle." Remote Sensing of Environment 187: 476-491. https://doi.org/10.1016/j.rse.2016.10.039.
+[1] Li, Y. and H. Fang (2022). "Real-Time Software for the Efficient Generation of the Clumping Index and Its Application Based on the Google Earth Engine." Remote Sensing 14(15): 3837. https://doi.org/10.3390/rs14153837.
 
 [2] Wei, S., H. Fang, C. B. Schaaf, L. He and J. M. Chen (2019). "Global 500 m clumping index product derived from MODIS BRDF data (2001–2017)." Remote Sensing of Environment 232: 111296.https://doi.org/10.1016/j.rse.2019.111296.
