@@ -6,6 +6,22 @@ var fcover12to2020 = ee.ImageCollection("users/lrvings/FCOVER");
 var fcover03to12 = ee.ImageCollection("users/lrvings/FCOVER2");
 var fcover00to03 = ee.ImageCollection("users/lrvings/FCOVER3");
 
+//MODIS kernel parameter to retrieve BRDF
+var MCD43A1 = ee.ImageCollection("MODIS/006/MCD43A1").select(['BRDF_Albedo_Parameters_Band1_iso', 
+'BRDF_Albedo_Parameters_Band1_vol',
+'BRDF_Albedo_Parameters_Band1_geo',
+'BRDF_Albedo_Band_Mandatory_Quality_Band1']);
+// band quality filter
+var MCD43A2Band1Quality = ee.ImageCollection("MODIS/006/MCD43A2").select(['Snow_BRDF_Albedo','BRDF_Albedo_Band_Quality_Band1']);
+// for calculating NDVI
+var MCD43A4=ee.ImageCollection("MODIS/006/MCD43A4");
+
+// observation collection
+var obserseBandsTerra = ee.ImageCollection("MODIS/006/MOD09A1").select(['SolarZenith']);
+var obserseBandsAqur = ee.ImageCollection("MODIS/006/MYD09A1").select(['SolarZenith']);
+var SZATerra_00_02 = ee.ImageCollection("MODIS/006/MOD09A1").select(['SolarZenith']).filterDate('2000-02-18','2002-07-04');
+obserseBandsAqur = obserseBandsAqur.merge(SZATerra_00_02);
+
 //scale 100, start From 2002-07-04
 var MCDLAICollections = ee.ImageCollection("MODIS/061/MCD15A3H").select('Lai');
 
@@ -201,20 +217,32 @@ function constructDateList(startDate,endDate,type){
 }
 
 
-
+// currently, the fcover products from 03/2000 to 05/2020 have been uploaded .  
+// to produce CI beyond this date range is not proper. 
+// we will continuely upload once the newest focver is available
 var mostDate = new Date('2021-01-01');
 var leastDate = new Date('2000-03-01');
 
 
 //generate Image at selected date
 
+//test by liyu
+// var sd = ee.Date('2002-02-19');
+// var ed = ee.Date('2002-02-20');
+
+// generateImage(sd,ed,'yearly')
+
 function generateImage(sd,ed,type){
 
-  var retrieveImgs = filtrateModiesImage(sd,ed);
+
+  // var retrieveImgs = filtrateModiesImage(sd,ed); can be deprecated, but still practicable
   
+  var retrieveImgs = extractMODISDataset(sd,ed);
   var dailyCIColls = retrieveImgs.map(RetrieveCI).map(h_dayQuity).map(postProcess);
-  
  
+  // print(dailyCIColls)
+  // var a = postProcess(dailyCIColls.first());
+  // print(a);
   // print(sgCIColls)
   switch(type){
     case 'daily':
@@ -227,9 +255,9 @@ function generateImage(sd,ed,type){
       return dailyImage;
       
     case 'monthly':
-      // var sgCIMonthly = ee.ImageCollection.fromImages(SGFilterForCi(dailyCIColls));
+      var sgCIMonthly = ee.ImageCollection.fromImages(SGFilterForCi(dailyCIColls));
       // print(sgCIMonthly)
-      var SGMonthlyComposite  = MonthlyComposite(sd,dailyCIColls);
+      var SGMonthlyComposite  = MonthlyComposite(sd,sgCIMonthly);
       
       return SGMonthlyComposite;
       // return MonthImage;
@@ -253,11 +281,11 @@ var inputCheck = function(start,end){
   var dateStart = new Date(start);
   var dateEnd = new Date(end);
   if(dateStart.toString() == "Invalid Date" || dateEnd.toString()== 'Invalid Date' ){
-    alert('Invalid time value')
+    alert('Invalid date value')
     return false
   }else{
     if((dateEnd-dateStart)<0 || (dateEnd-mostDate)>0 || (leastDate-dateStart)>0){
-      alert('the start date should less than the end date and date are allowed only between 2000-03-01 to 2020-05-01')
+      alert('the start date should be less than the end date and date currently are allowed between 2000-03-01 to 2021-01-01')
       return false
     }
     var datesStr = new Array(dateStart,dateEnd)
@@ -491,7 +519,53 @@ function selectExport(start,end,ImgName,type){
 }
 
 
+/////////#################### // make sure each piece of MCD43A1 image has its corresponding observation information 
+function extractMODISDataset(start,end){
+  
+  var startDate = ee.Date(start);
+  var endDate = ee.Date(end);
+  var difference = endDate.difference(startDate, 'days');
+  
 
+  var MCD43A1Band1s = MCD43A1.filterDate(startDate,endDate)
+  
+ 
+  function ndvi(image){
+      return image.normalizedDifference(['Nadir_Reflectance_Band2','Nadir_Reflectance_Band1']).rename(['ndvi']);
+  }
+
+  var retievalImages = MCD43A1Band1s.map(function(image){
+    
+    var currentDate = ee.Date(ee.Image(image).get('system:time_start'))
+    
+    var coverageDate = currentDate.advance(1,'months')
+    
+    var MCD43A2Img =  ee.Image(MCD43A2Band1Quality.filterDate(currentDate,coverageDate).first())
+    
+    var quality = MCD43A2Img.select('BRDF_Albedo_Band_Quality_Band1');
+    
+    var snowBand = MCD43A2Img.select('Snow_BRDF_Albedo');
+    
+    var NDVI = ee.Image(MCD43A4.filterDate(currentDate,coverageDate).map(ndvi).first());
+    
+    
+    var Terra_SZA = ee.Image(obserseBandsTerra.filterDate(currentDate,coverageDate).first());
+  
+    var Aqur_SZA = ee.Image(obserseBandsAqur.filterDate(currentDate,coverageDate).first());
+    
+    var average_SZA = ee.Image(Terra_SZA.add(Aqur_SZA).divide(2));
+    
+    var fcoverImg = ee.Image(fcover.filterDate(currentDate,coverageDate).first()).rename(['fcoverMask']);
+    
+    
+    return ee.Image(image).addBands([NDVI,average_SZA,quality,snowBand,fcoverImg]);
+  });
+  
+  return retievalImages
+ 
+}
+
+//
 function filtrateModiesImage(start,end){
   //js date
   var dateStart = new Date(start);
@@ -508,10 +582,10 @@ function filtrateModiesImage(start,end){
   'BRDF_Albedo_Band_Mandatory_Quality_Band1']);//.map(hQuity);
   
  
- 
   
   //band quality for identification of retrieval quality
   var MCD43A2Band1Quality = ee.ImageCollection("MODIS/006/MCD43A2").filterDate(startDate,endDate).select(['Snow_BRDF_Albedo','BRDF_Albedo_Band_Quality_Band1']);
+  
   // for calculate NDVI
   var MCD43A4=ee.ImageCollection("MODIS/006/MCD43A4").filterDate(startDate,endDate);
   
@@ -519,17 +593,23 @@ function filtrateModiesImage(start,end){
   if(days<8){
     endDate = endDate.advance(8,'day');
   }
- 
+  
   //for acquiration of SZA and View Zenith of Terra during the overpass, 8-day
   var observationSize = ee.ImageCollection("MODIS/006/MOD09A1").filterDate(startDate,endDate).select(['SolarZenith']).size();
+  //MOD09A1 has no any images from 10/06,2001 to 26/06,2001
   
+  //modified for no any images are filtered 
+  var is_noObservation = observationSize.lt(ee.Number(1));
+  observationSize = ee.Algorithms.If(is_noObservation,1,observationSize);
+  endDate =  ee.Algorithms.If(is_noObservation,endDate.advance(8,'day'),endDate);
   
   var obserseBandsTerra=ee.ImageCollection("MODIS/006/MOD09A1").filterDate(startDate,endDate).select(['SolarZenith']);
+  
   var obserseBandsAqur=ee.ImageCollection("MODIS/006/MYD09A1").filterDate(startDate,endDate).select(['SolarZenith']);
   //MYD09A1 from 2002-07-04
- 
+
   //add 'ViewZenith','RelativeAzimuth' if required
-  var isAqurFewer = obserseBandsAqur.size().lt(obserseBandsTerra.size());
+  // var isAqurFewer = obserseBandsAqur.size().lt(obserseBandsTerra.size());
  
   var overLength = obserseBandsTerra.size().subtract(obserseBandsAqur.size());
   var overCollection = ee.ImageCollection.fromImages(obserseBandsTerra.toList(observationSize).slice(0,overLength));
@@ -537,13 +617,13 @@ function filtrateModiesImage(start,end){
   var obserseAqur = overCollection.merge(obserseBandsAqur);
   //var modiObserAqur = ee.Algorithms.If(isAqurFewer,,obserseBandsAqur)
  
-
+  
 
   
-    
+  
   var obTerra = obserseBandsTerra.toList(observationSize);
   var obAqur = obserseAqur.toList(observationSize);
-
+  
   var averageSolarZenith = obTerra.map(function(TerraObser){
     
     var index = obTerra.indexOf(TerraObser);
@@ -554,6 +634,7 @@ function filtrateModiesImage(start,end){
   
   
   var aveObserImage = ee.ImageCollection.fromImages(averageSolarZenith);
+  
   var retriImgCollection = alignImage(MCD43A1Band1s,MCD43A2Band1Quality,aveObserImage,MCD43A4);
   
   
@@ -771,11 +852,13 @@ function RetrieveCI(retrivalImage){
 function SGFilterForCi(CICollections){
   
   var qualityBands = ee.ImageCollection(CICollections).select('BRDF_Albedo_Band_Quality_Band1').toList(CICollections.size())
+  var meanValue = CICollections.select('CI').mean()
   var startDate = ee.Date(ee.Image(CICollections.first()).get('system:time_start'));
   var filterImgCollection = CICollections.map(function(img){
     var dstamp = ee.Date(img.get('system:time_start'))
-    var ddiff = dstamp.difference(startDate,'hour')
-    img = img.select(['CI']).set('date',dstamp).unmask()
+    var ddiff = dstamp.difference(startDate,'day')
+    // Reset masked pixels to valid, fill with default value 0, input footprint.
+    img = img.select(['CI']).set('date',dstamp).unmask(meanValue)
     return img.addBands(ee.Image(1).toFloat().rename('constant')).
       addBands(ee.Image(ddiff).toFloat().rename('t')).
       addBands(ee.Image(ddiff).pow(ee.Image(2)).toFloat().rename('t2'))
@@ -821,7 +904,9 @@ function SGFilterForCi(CICollections){
     var timestamp = ee.Date(qualityBand.get('system:time_start'));
     var smoothedImg =  getLocalFit(i).multiply(ref.select(indepSelectors)).reduce(ee.Reducer.sum()).copyProperties(ref,['date','system:time_start']);
     
-    var SGImg = ee.Image(smoothedImg)
+    var CIBand = ee.Image(ref.select('CI'));
+    var SGImg = CIBand.where(qualityBand.eq(2),smoothedImg);
+    
     var SGCI = SGImg.updateMask(GLC2000.gt(0)).updateMask(SGImg.lt(1.001)).updateMask(SGImg.gt(0.3));
     //.set("system:time_start", timestamp);
     return ee.Image([SGCI,qualityBand]).rename(['CI','BRDF_Albedo_Band_Quality_Band1']);
@@ -848,9 +933,10 @@ function SGFilterForCi(CICollections){
 
 function postProcess(image){
   
- 
+  //LAI collection has no regular 8days image within 06/2001 and 03/2002. It is better to take montly mean LAI as filter
   var timestamp = ee.Date(image.get('system:time_start'));
-  var endtampe = timestamp.advance(8,'day')
+  
+  var endtampe = timestamp.advance(2,'month')
   // var monthDay =  timestamp.format('MM-dd')
   // var backupDate = ee.Date(ee.String('2003-').cat(monthDay))
   // var Flag =  timestamp.difference(ee.Date('2002-07-04'),'day').gt(0);
@@ -860,7 +946,7 @@ function postProcess(image){
   // // print(backupLAI)
   // var date = ee.Algorithms.If(Flag,timestamp,backupDate);
   // var tDate = ee.Date(date);
-  
+
   var LAI =ee.Image(LAICollection.filterDate(timestamp,endtampe).first());
   
   // var LAI = MCD15Image.select('Lai');
@@ -878,7 +964,8 @@ function postProcess(image){
   var postFilter3 = ORIGLC2000.eq(14).bitwiseAnd(InitCI.lt(0.7)).bitwiseAnd(LAI.lt(100));//LAI filter is need here
   var postFilter4 = ORIGLC2000.gte(19);
   
-  // var postFilter5 = LAI.lt(40).bitwiseAnd(InitCI.lt(0.7));
+  // var postFilter5 = LAI.lt(40).bitwiseAnd(LAI.gt(0)).bitwiseAnd(InitCI.lt(0.7));
+  
   var postFilter5 = LAI.eq(0).bitwiseOr(LAI.gt(100));
   
   var finalFilter = postFilter1.bitwiseOr(postFilter2).bitwiseOr(postFilter3).bitwiseOr(postFilter4).bitwiseOr(postFilter5);
